@@ -20,8 +20,19 @@ cv_resized_img = None
 #objects
 led_num = None
 vector_num = None
+RPM_value = None
 num_vector = 0
 num_led = 0
+num_rpm = 0
+# simulation
+num_blades = 4
+motor_angle = 0
+list_of_images = []
+canvas_image = None
+simulation_start_time = 0.0
+fps_window_start = 0.0
+fps_frame_count = 0
+animation_after_id = None
 
 def fileImage():
 
@@ -53,6 +64,7 @@ def convertOptions():
     global cOptions 
     global led_num
     global vector_num
+    global RPM_value
     cOptions = Tk()
     cOptions.geometry("600x400")
     frm = ttk.Frame(cOptions, padding=30)
@@ -65,6 +77,10 @@ def convertOptions():
     vector_num = ttk.Entry(frm, width=30)
     vector_num.grid(column = 1, row = 2)
     ttk.Label(frm, text="Number of vectors: ").grid(column = 0, row = 2)
+    RPM_value = ttk.Entry(frm, width=30)
+    RPM_value.grid(column = 1, row = 3)
+    ttk.Label(frm, text="RPM: ").grid(column = 0, row = 3)
+
 
     cOptions.mainloop()
 
@@ -75,10 +91,13 @@ def convert():
     global cv_resized_img
     global vector_image
     global num_led
-    global num_vector
+    global num_vector, num_blades, num_rpm, num_blades
 
+    num_rpm = int(RPM_value.get())
+    num_blades = num_rpm // 100 * 4
     num_led = int(led_num.get())
-    num_vector = int(vector_num.get())
+    num_vector = int(vector_num.get()) - int(vector_num.get()) % num_blades
+    
     cOptions.destroy()
     cOptions = None
 
@@ -93,13 +112,14 @@ def convert():
 
         for j in range(1, num_led + 1):
 
-            # Calculate coordinates (0° = Up, clockwise)
             lenght = pix_spasing * j
             x = int(lenght * math.sin(angle_rad)) + 500
             y = int(lenght * math.cos(angle_rad)) + 500
             # print(f"{x}, {y}")
             vector_image[i][j] = getpixel(x, y)
             # print(vector_image[i][j])
+    # drawStillSim()
+    buildSim()
     drawSim()
 
 def getpixel(x, y):
@@ -109,7 +129,7 @@ def getpixel(x, y):
     return cv_resized_img[x,y]
 
 
-def drawSim():
+def drawStillSim():
     img.put("black", to=(0, 0, 1000, 1000))
     global led_num
     global vector_num
@@ -131,11 +151,78 @@ def drawSim():
 
             color = '#' + hex((vector_image[i][j][2] << 16) + (vector_image[i][j][1] << 8) + vector_image[i][j][0])[2:]
             img.put(color, to=(x, y, int(x+pix_spasing), int(y+pix_spasing)))
-            
 
+# returns numpy array of one blade in location
+def drawVectors(vector_index):
+    if num_vector <= 0 or num_led <= 0:
+        raise RuntimeError("Convert an image before drawing vectors.")
 
-    # img.put("#FF0000", to=(10,10, 990, 990))  # Red pixel at center
+    if not isinstance(vector_index, int) or isinstance(vector_index, bool):
+        raise TypeError("vector_index must be an integer.")
+    if not 0 <= vector_index <= num_vector:
+        raise ValueError(f"Vector number must be between 0 and {num_vector}.")
 
+    pixels = np.zeros((1000, 1000, 3), dtype=np.uint8)
+    pixel_spacing = 1000 / num_led / 2
+
+    angle = 360.0 / num_vector * vector_index - 90
+    angle_rad = math.radians(angle)
+
+    for led_index in range(1, num_led + 1):
+        length = pixel_spacing * led_index
+        x = int(length * math.sin(angle_rad)) * -1 + 500
+        y = int(length * math.cos(angle_rad)) + 500
+        x_end = int(x + pixel_spacing)
+        y_end = int(y + pixel_spacing)
+
+        color_rgb = vector_image[vector_index][led_index][::-1]
+        pixels[y:y_end, x:x_end] = color_rgb
+
+    return pixels
+
+def buildSim():
+    global list_of_images, motor_angle, simulation_start_time
+    global fps_window_start, fps_frame_count, animation_after_id, num_blades
+
+    if animation_after_id is not None:
+        root.after_cancel(animation_after_id)
+        animation_after_id = None
+
+    list_of_images = []
+    for i in range(1, (num_vector + 1) // num_blades):
+        image = np.zeros((1000, 1000, 3), dtype=np.uint8)
+        for j in range(num_blades):
+            image = image | drawVectors(i + num_vector // num_blades * j)
+        list_of_images.append(ImageTk.PhotoImage(Image.fromarray(image), master=root))
+    motor_angle = -1
+    simulation_start_time = time.perf_counter()
+    fps_window_start = simulation_start_time
+    fps_frame_count = 0
+
+def drawSim():
+    global motor_angle, fps_window_start, fps_frame_count, animation_after_id, num_blades
+
+    if not list_of_images:
+        return
+
+    current_time = time.perf_counter()
+    elapsed_time = current_time - simulation_start_time
+    frame_index = int(elapsed_time * num_rpm / 60 * num_vector // num_blades) % (num_vector // num_blades) - 1
+    # if frame_index >= len(list_of_images):
+    #     frame_index = len(list_of_images)-1
+    if frame_index != motor_angle:
+        motor_angle = frame_index
+        canvas.itemconfigure(canvas_image, image=list_of_images[frame_index])
+        fps_frame_count += 1
+
+    fps_elapsed = current_time - fps_window_start
+    if fps_elapsed >= 0.5:
+        displayed_fps = fps_frame_count / fps_elapsed
+        fps_label.configure(text=f"RPM: {num_rpm}    FPS: {displayed_fps:.1f}")
+        fps_frame_count = 0
+        fps_window_start = current_time
+
+    animation_after_id = root.after(1, drawSim)
 
 root = Tk()
 root.geometry("1600x1000")
@@ -156,10 +243,12 @@ ttk.Button(frm, text="Quit", command=root.destroy).grid(column=0, row=0)
 # simulation 
 canvas = tk.Canvas(root, width=1000, height=1000, bg="black")
 canvas.grid(column=40, row=4)
+fps_label = ttk.Label(root, text=f"RPM: {num_rpm}    FPS: 0.0")
+fps_label.grid(column=41, row=4, sticky=tk.N, padx=(12, 0))
 
 # Create a PhotoImage buffer
 img = tk.PhotoImage(width=1000, height=1000)
-canvas.create_image((0, 0), image=img, anchor=tk.NW)
+canvas_image = canvas.create_image((0, 0), image=img, anchor=tk.NW)
 
 # drawSim()
 
