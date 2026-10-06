@@ -34,6 +34,7 @@ num_rpm = 0
 
 # simulation
 num_blades = 4
+num_blades_sim = 0
 motor_angle = 0
 list_of_images = []
 canvas_image = None

@@ -11,9 +11,9 @@ import var
 
 def convert():
     var.num_rpm = int(var.RPM_value.get())
-    var.num_blades = var.num_rpm // 100 * 4
+    var.num_blades_sim = var.num_rpm // 100 * 4
     var.num_led = int(var.led_num.get())
-    var.num_vector = int(var.vector_num.get()) - int(var.vector_num.get()) % var.num_blades
+    var.num_vector = int(var.vector_num.get()) - int(var.vector_num.get()) % var.num_blades_sim
 
     var.cOptions.destroy()
     var.cOptions = None
@@ -92,11 +92,11 @@ def buildSim():
         var.animation_after_id = None
 
     var.list_of_images = []
-    for vector_index in range(1, (var.num_vector + 1) // var.num_blades):
+    for vector_index in range(1, (var.num_vector + 1) // var.num_blades_sim):
         image = np.zeros((var.size, var.size, 3), dtype=np.uint8)
-        for blade_index in range(var.num_blades):
+        for blade_index in range(var.num_blades_sim):
             image = image | drawVectors(
-                vector_index + var.num_vector // var.num_blades * blade_index
+                vector_index + var.num_vector // var.num_blades_sim * blade_index
             )
         var.list_of_images.append(
             ImageTk.PhotoImage(Image.fromarray(image), master=var.root)
@@ -122,11 +122,7 @@ def drawSim(Still=False):
 
     current_time = time.perf_counter()
     elapsed_time = current_time - var.simulation_start_time
-    frame_index = (
-        int(elapsed_time * var.num_rpm / 60 * var.num_vector // var.num_blades)
-        % (var.num_vector // var.num_blades)
-        - 1
-    )
+    frame_index = (int(elapsed_time * var.num_rpm / 60 * var.num_vector // var.num_blades_sim) % (var.num_vector // var.num_blades_sim) - 1)
 
     if frame_index != var.motor_angle:
         var.motor_angle = frame_index

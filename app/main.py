@@ -80,13 +80,15 @@ ttk.Button(frm, text="load image", command=fileImage).grid(column=1, row=0)
 ttk.Button(frm, text="convert image", command=convertOptions).grid(column=2, row=0)
 ttk.Button(frm, text="Quit", command=var.root.destroy).grid(column=0, row=0)
 
-var.sim_button = ttk.Button(frm, text="Start sim", command=lambda: moveSim(Still=False))
-var.sim_button.grid(column=41, row=5)
+
 
 var.canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")
 var.canvas.grid(column=40, row=4)
 var.fps_label = ttk.Label(var.root, text=f"RPM: {var.num_rpm}    FPS: 0.0")
 var.fps_label.grid(column=41, row=4, sticky=tk.N, padx=(12, 0))
+
+var.sim_button = ttk.Button(frm, text="Start sim", command=lambda: moveSim(Still=False))
+var.sim_button.grid(column=4, row=0)
 
 var.img = tk.PhotoImage(width=var.size, height=var.size)
 var.canvas_image = var.canvas.create_image((0, 0), image=var.img, anchor=tk.NW)
