@@ -15,7 +15,7 @@ def fileImage():
     image_file_path = filedialog.askopenfilename(
         initialdir=os.path.expanduser("~"),
         title="Select a File", 
-        filetypes=(("Image files", "*.JPEG *.png *JPG"), ("All files", "*.*"))
+        filetypes=(("Image files", "*.JPEG *.png *.JPG"), ("All files", "*.*"))
     )
 
     original_img = Image.open(image_file_path)
@@ -33,20 +33,31 @@ def fileImage():
 
 def convertOptions():
     var.cOptions = Tk()
-    var.cOptions.geometry("600x400")
+    var.cOptions.geometry("800x400")
     frm = ttk.Frame(var.cOptions, padding=30)
     frm.grid()
-    ttk.Button(frm, text="convert", command=Sim_and_convert.convert).grid(column=0, row=5)
-    ttk.Button(frm, text="cancel", command=var.cOptions.destroy).grid(column=1, row=5)
+    ttk.Button(frm, text="convert", command=Sim_and_convert.convert).grid(column=0, row=6)
+    ttk.Button(frm, text="cancel", command=var.cOptions.destroy).grid(column=1, row=6)
     var.led_num = ttk.Entry(frm, width=30)
     var.led_num.grid(column=1, row=1)
-    ttk.Label(frm, text="Number of pixles: ").grid(column=0, row=1)
+    var.led_num.insert(0, "25")
+    ttk.Label(frm, text="Number of pixels: ").grid(column=0, row=1)
+    var.blades_num = ttk.Entry(frm, width=30)
+    var.blades_num.grid(column=1, row=2)
+    var.blades_num.insert(0, "4")
+    ttk.Label(frm, text="Number of blades: ").grid(column=0, row=2)
+    var.empty_leds_num = ttk.Entry(frm, width=30)
+    var.empty_leds_num.grid(column=1, row=3)
+    var.empty_leds_num.insert(0, "0")
+    ttk.Label(frm, text="Size of empty center: ").grid(column=0, row=3)
     var.vector_num = ttk.Entry(frm, width=30)
-    var.vector_num.grid(column=1, row=2)
-    ttk.Label(frm, text="Number of vectors: ").grid(column=0, row=2)
+    var.vector_num.grid(column=1, row=4)
+    var.vector_num.insert(0, "100")
+    ttk.Label(frm, text="Number of vectors: ").grid(column=0, row=4)
     var.RPM_value = ttk.Entry(frm, width=30)
-    var.RPM_value.grid(column=1, row=3)
-    ttk.Label(frm, text="RPM: ").grid(column=0, row=3)
+    var.RPM_value.grid(column=1, row=5)
+    var.RPM_value.insert(0, "1000")
+    ttk.Label(frm, text="RPM: ").grid(column=0, row=5)
 
     var.cOptions.mainloop()
 
