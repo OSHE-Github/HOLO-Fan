@@ -15,7 +15,7 @@ def fileImage():
     image_file_path = filedialog.askopenfilename(
         initialdir=os.path.expanduser("~"),
         title="Select a File", 
-        filetypes=(("Image files", "*.JPEG *.png *.JPG"), ("All files", "*.*"))
+        filetypes=(("Image files", "*.JPEG *.png *.JPG *.jpeg *.PNG *.jpg"), ("All files", "*.*"))
     )
 
     original_img = Image.open(image_file_path)
@@ -32,7 +32,7 @@ def fileImage():
     image_label.grid(column=10, row=4)
 
 def convertOptions():
-    var.cOptions = Tk()
+    var.cOptions = tk.Toplevel(var.root)
     var.cOptions.geometry("800x400")
     frm = ttk.Frame(var.cOptions, padding=30)
     frm.grid()
@@ -58,9 +58,6 @@ def convertOptions():
     var.RPM_value.grid(column=1, row=5)
     var.RPM_value.insert(0, "1000")
     ttk.Label(frm, text="RPM: ").grid(column=0, row=5)
-
-    var.cOptions.mainloop()
-
 def moveSim(Still = False):
     
     if Still:

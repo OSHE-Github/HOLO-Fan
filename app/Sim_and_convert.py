@@ -51,15 +51,14 @@ def drawStillSim():
             y = int(length * math.cos(angle_rad) + var.size / 2)
 
             color = var.vector_image[vector_index][led_index]
-            color_hex = "#" + hex((color[2] << 16) + (color[1] << 8) + color[0])[2:]
-            if led_index <= var.num_empty_leds or color_hex == "#0":
+            color_hex = "#{:06X}".format((color[2] << 16) + (color[1] << 8) + color[0])
+            if led_index <= var.num_empty_leds or color_hex == "#000000":
                 color_hex = "#000000"
 
             var.img.put(
                 color_hex,
                 to=(x, y, int(x + pixel_spacing), int(y + pixel_spacing)),
             )
-
 
 # returns numpy array of one blade in location
 def drawVectors(vector_index):
@@ -103,7 +102,6 @@ def buildSim():
     progress_window.title("Building simulation")
     progress_window.resizable(False, False)
     progress_window.transient(var.root)
-    progress_window.grab_set()
     progress_window.attributes("-topmost", True)
 
     ttk.Label(
@@ -119,6 +117,8 @@ def buildSim():
     progress_bar.grid(row=1, column=0, padx=20, pady=(0, 16))
     total_frames = (var.num_vector + 1) // var.num_blades
     progress_bar["maximum"] = total_frames
+    progress_window.wait_visibility()
+    progress_window.grab_set()
     progress_window.update_idletasks()
     progress_window.update()
 
