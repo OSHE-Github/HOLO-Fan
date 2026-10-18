@@ -12,11 +12,8 @@ import var
 
 
 def convert():
-    var.num_blades = int(var.blades_num.get())
-    var.num_empty_leds = int(var.empty_leds_num.get())
     var.num_rpm = int(var.RPM_value.get())
     var.num_blades_sim = var.num_rpm // 100 * 4
-    var.num_led = int(var.led_num.get())
     var.num_vector = int(var.vector_num.get())# - int(var.vector_num.get()) % var.num_blades
     
     var.cOptions.destroy()
@@ -34,12 +31,25 @@ def convert():
             var.vector_image[vector_index][led_index] = var.cv_resized_img[x, y]
 
     buildSim()
+    drawStillSim(True)
     drawSim(True)
 
+def saveSettings():
+    var.num_blades = int(var.blades_num.get())
+    var.num_empty_leds = int(var.empty_leds_num.get())
+    var.num_led = int(var.led_num.get())
+    var.IP_address = var.ip_address_input.get()
+    
+    var.fan_settings_popup.destroy()
+    var.fan_settings_popup = None
+
+
 # Draws a image of all vectors created
-def drawStillSim():
+def drawStillSim(new_image=False):
     var.img.put("black", to=(0, 0, var.size, var.size))
     pixel_spacing = var.size / (var.num_led + var.num_empty_leds) / 2
+
+    file_contents = f"{var.num_vector}\n"
 
     for vector_index in range(1, var.num_vector + 1):
         angle = 360.0 / var.num_vector * vector_index - 90
@@ -54,11 +64,18 @@ def drawStillSim():
             color_hex = "#{:06X}".format((color[2] << 16) + (color[1] << 8) + color[0])
             if led_index <= var.num_empty_leds or color_hex == "#000000":
                 color_hex = "#000000"
-
+            file_contents += f"{color_hex},"
             var.img.put(
                 color_hex,
                 to=(x, y, int(x + pixel_spacing), int(y + pixel_spacing)),
             )
+        file_contents = file_contents[:-1] + "\n"
+    if new_image:
+        print("ping")
+        with open("image.txt", "w") as f:
+            print(file_contents, file=f)
+
+
 
 # returns numpy array of one blade in location
 def drawVectors(vector_index):

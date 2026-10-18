@@ -2,3 +2,4 @@
     has somthing to do with empty pixels
 2. spining sim misses last vector
 3. wrong colors with shane face
+4. AttributeError when closing file system with out image (minor)
