@@ -38,6 +38,7 @@ num_rpm = 1000
 num_blades_sim = 0
 motor_angle = 0
 list_of_images = []
+still_image = None
 canvas_image = None
 simulation_start_time = 0.0
 fps_window_start = 0.0
