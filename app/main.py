@@ -9,6 +9,7 @@ from PIL import Image, ImageTk
 
 import Sim_and_convert
 import var
+import Drawing
 
 
 def fileImage():
@@ -17,6 +18,11 @@ def fileImage():
         title="Select a File", 
         filetypes=(("Image files", "*.JPEG *.png *.JPG *.jpeg *.PNG *.jpg"), ("All files", "*.*"))
     )
+    if not image_file_path:
+        return
+
+    var.image_canvas.delete("all")
+    var.canvas_buttons.destroy()
 
     original_img = Image.open(image_file_path)
     cv_image = cv2.imread(image_file_path)
@@ -24,6 +30,7 @@ def fileImage():
     dimensions = (var.size + 1, var.size + 1)
     resized_img = original_img.resize(dimensions)
     var.cv_resized_img = cv2.resize(cv_image, dimensions)
+    var.drawing_active = False
 
     tk_photo = ImageTk.PhotoImage(resized_img)
 
@@ -37,7 +44,7 @@ def convertOptions():
     var.cOptions.title("Convert Options")
     frm = ttk.Frame(var.cOptions, padding=30)
     frm.grid()
-    ttk.Button(frm, text="convert", command=Sim_and_convert.convert).grid(column=0, row=6)
+    ttk.Button(frm, text="convert", command=convertImage).grid(column=0, row=6)
     ttk.Button(frm, text="cancel", command=var.cOptions.destroy).grid(column=1, row=6)
     var.vector_num = ttk.Entry(frm, width=30)
     var.vector_num.grid(column=1, row=4)
@@ -47,6 +54,11 @@ def convertOptions():
     var.RPM_value.grid(column=1, row=5)
     var.RPM_value.insert(0, str(var.num_rpm))
     ttk.Label(frm, text="RPM: ").grid(column=0, row=5)
+
+def convertImage():
+    if var.drawing_active:
+        var.cv_resized_img = Drawing.get_cv_image()
+    Sim_and_convert.convert()
 
 def FanSettings():
     var.fan_settings_popup = tk.Toplevel(var.root)
@@ -134,9 +146,19 @@ def updateFanInfo():
     var.fan_info.configure(text=f"Fan RPM: {var.fan_rpm}   IP Address: {var.IP_address}")
     var.fan_pull = var.root.after(100, updateFanInfo) # update every 0.1 seconds
 
+# sets up a new drawing canvas
+def new_drawing():
+    var.image_canvas.delete("all")
+    var.canvas_buttons.destroy()
+    var.image_canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")
+    var.image_canvas.grid(column=0, row=4)
+    Drawing.setup(var.root)
+
+
 var.root = Tk()
 var.root.geometry("1600x1000")
 var.root.title("HOLO Fan Desktop")
+# var.root.configure(bg="#524F45")
 if sys.platform.startswith("win"):
     var.root.state("zoomed")
 elif sys.platform.startswith("linux"):
@@ -147,13 +169,16 @@ else:
 frm = ttk.Frame(var.root, padding=30)
 frm.grid()
 ttk.Button(frm, text="load image", command=fileImage).grid(column=1, row=0)
-ttk.Button(frm, text="convert image", command=convertOptions).grid(column=3, row=0)
+ttk.Button(frm, text="new drawing", command=new_drawing).grid(column=2, row=0)
+ttk.Button(frm, text="convert image", command=convertOptions).grid(column=4, row=0)
 ttk.Button(frm, text="Quit", command=var.root.destroy).grid(column=0, row=0)
-ttk.Button(frm, text="Send to Fan", command=sendToFan).grid(column=4, row=0)
-ttk.Button(frm, text="Fan Settings", command=FanSettings).grid(column=2, row=0)
+ttk.Button(frm, text="Send to Fan", command=sendToFan).grid(column=5, row=0)
+ttk.Button(frm, text="Fan Settings", command=FanSettings).grid(column=3, row=0)
+var.sim_button = ttk.Button(frm, text="Start sim", command=lambda: moveSim(Still=False))
+var.sim_button.grid(column=6, row=0)
 
-
-tk.Canvas(var.root, width=var.size, height=var.size, bg="black").grid(column=0, row=4)
+var.image_canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")
+var.image_canvas.grid(column=0, row=4)
 var.canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")
 var.canvas.grid(column=1, row=4)
 status_frame = ttk.Frame(var.root)
@@ -164,11 +189,13 @@ var.fps_label.grid(column=0, row=0, sticky=tk.W)
 var.fan_info = ttk.Label(status_frame, text=f"Fan RPM: {var.fan_rpm}   IP Address: {var.IP_address}")
 var.fan_info.grid(column=0, row=1, sticky=tk.W, pady=(6, 0))
 
-var.sim_button = ttk.Button(frm, text="Start sim", command=lambda: moveSim(Still=False))
-var.sim_button.grid(column=5, row=0)
+
 
 var.img = tk.PhotoImage(width=var.size, height=var.size)
 var.canvas_image = var.canvas.create_image((0, 0), image=var.img, anchor=tk.NW)
 updateFanInfo()
+
+
+Drawing.setup(var.root)
 
 var.root.mainloop()
