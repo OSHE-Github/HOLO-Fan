@@ -1,6 +1,6 @@
 // Declaration and initialization of the input pin
 int Analog_Eingang = A0; // X-axis-signal
-int Digital_Eingang = 3; // Button
+int Digital_Eingang = 7; // Button
 void setup ()
 {
  pinMode (Analog_Eingang, INPUT);
