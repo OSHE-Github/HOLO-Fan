@@ -54,7 +54,7 @@ fan_pull = None
 
 # fan settings
 num_led = 25
-num_empty_leds = 0
+num_empty_leds = 8
 num_blades = 4
 IP_address = "0.0.0.0"
 

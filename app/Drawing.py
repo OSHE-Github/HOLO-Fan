@@ -13,6 +13,7 @@ def setup(root):
     drawing_draw = ImageDraw.Draw(drawing_image)
     var.drawing_active = True
 
+    var.image_canvas.bind("<Button-1>", start_paint)
     var.image_canvas.bind("<B1-Motion>", paint)
     var.image_canvas.bind("<ButtonRelease-1>", reset)
     
@@ -57,18 +58,38 @@ def setup(root):
     var.current_color = "white"
 
 
+def start_paint(event):
+    var.last_x, var.last_y = event.x, event.y
+    pen_size = var.slider.get()
+    radius = pen_size / 2
+    var.image_canvas.create_oval(
+        event.x - radius,
+        event.y - radius,
+        event.x + radius,
+        event.y + radius,
+        fill=var.current_color,
+        outline=var.current_color,
+    )
+    drawing_draw.ellipse(
+        (event.x - radius, event.y - radius, event.x + radius, event.y + radius),
+        fill=var.current_color,
+    )
+
+
 def paint(event):
-    # On first click, set the starting point without drawing a line
     if var.last_x is None or var.last_y is None:
-        var.last_x, var.last_y = event.x, event.y
         return
-        
+
     # Draw a line from the last tracked position to the current mouse position
     var.image_canvas.create_line(
-        var.last_x, var.last_y, event.x, event.y, 
+        var.last_x, var.last_y, event.x, event.y,
         fill=var.current_color, width=var.slider.get(), capstyle=tk.ROUND, smooth=True
     )
-    drawing_draw.line((var.last_x, var.last_y, event.x, event.y),fill=var.current_color,width=var.slider.get())
+    drawing_draw.line(
+        (var.last_x, var.last_y, event.x, event.y),
+        fill=var.current_color,
+        width=var.slider.get(),
+    )
     
     # Update the last coordinates to current position
     var.last_x, var.last_y = event.x, event.y

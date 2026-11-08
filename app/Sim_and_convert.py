@@ -52,7 +52,7 @@ def fanFile():
     file_contents = f"{var.num_vector}\n"
 
     for vector_index in range(1, var.num_vector + 1):
-        for led_index in range(1, var.num_led + var.num_empty_leds + 1):
+        for led_index in range(var.num_empty_leds + 1, var.num_led + var.num_empty_leds + 1):
             color = var.vector_image[vector_index][led_index]
             color_hex = "#{:06X}".format((color[2] << 16) + (color[1] << 8) + color[0])
             if led_index <= var.num_empty_leds:

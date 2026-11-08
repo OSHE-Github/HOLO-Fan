@@ -58,6 +58,7 @@ def convertOptions():
 def convertImage():
     if var.drawing_active:
         var.cv_resized_img = Drawing.get_cv_image()
+    var.sim_button.configure(text="Start sim", command=lambda: moveSim(Still=False))
     Sim_and_convert.convert()
 
 def FanSettings():
@@ -139,7 +140,7 @@ def getFanInfo():
     var.empty_leds_num.delete(0, tk.END)
     var.blades_num.insert(0, str(4))
     var.led_num.insert(0, str(25))
-    var.empty_leds_num.insert(0, str(0))
+    var.empty_leds_num.insert(0, str(8))
 
 def updateFanInfo():
     # pull from fan API

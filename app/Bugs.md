@@ -1,1 +1,4 @@
-1. AttributeError when closing file system with out image (minor)
+1. add dead zone
+2. fix caps 
+3. color picer
+4. comunication 
