@@ -3,8 +3,9 @@ from tkinter import ttk
 from tkinter import filedialog
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageTk
 
+import colorpicker
 import var
 
 def setup(root):
@@ -12,6 +13,7 @@ def setup(root):
     drawing_image = Image.new("RGB", (var.size + 1, var.size + 1), "black")
     drawing_draw = ImageDraw.Draw(drawing_image)
     var.drawing_active = True
+    dead_zone()
 
     var.image_canvas.bind("<Button-1>", start_paint)
     var.image_canvas.bind("<B1-Motion>", paint)
@@ -20,14 +22,13 @@ def setup(root):
     # Add a canvas control
     var.canvas_buttons = tk.Frame(root, padx=30, pady=30)
     var.canvas_buttons.grid(column=0, row=6, columnspan=1, pady=12)
-    # var.canvas_buttons.configure(bg="#E3C76C")
 
-    value_label = ttk.Label(var.canvas_buttons, text="Pen size:")
+    value_label = ttk.Label(var.canvas_buttons, text="Pen Size:")
     value_label.grid(column=4, row=0)
 
     var.slider = tk.Scale(var.canvas_buttons, from_=1, to=100, orient="horizontal")  
     var.slider.grid(column=5, row=0, pady=5)
-    var.slider.set(5)
+    var.slider.set(30)
 
     clear_btn = tk.Button(var.canvas_buttons, text="Clear Canvas", command=clear_canvas)
     clear_btn.grid(column=0, row=0, columnspan=2, pady=5)
@@ -35,27 +36,26 @@ def setup(root):
     save_btn = tk.Button(var.canvas_buttons, text="Save Drawing", command=save_drawing)
     save_btn.grid(column=2, row=0, columnspan=2, pady=5)
 
-    # color buttons
-    red_btn = tk.Button(var.canvas_buttons, text="Red", relief=tk.RAISED, command=lambda: change_color(red_btn, "red"))
-    red_btn.grid(column=0, row=1, pady=5)
+    color_buttons = []
+    var.color_names = ["#ff0000", "#0000ff", "#00ff00", "#ffff00", "#000000", "#ffffff"]
+    for i in range(6):
+        color=var.color_names[i]
+        color_buttons.append(tk.Button(
+            var.canvas_buttons,
+            text="Color",
+            relief=tk.RAISED,
+            command=lambda i=i: change_color(color_buttons[i], var.color_names[i],i),
+            bg=color,
+            activebackground=color,
+            fg=color,
+            activeforeground=color,
+            borderwidth=0 if color != var.color_names[5] else 5,
+        ))
+        
+        color_buttons[i].grid(column=i, row=1, pady=5)
 
-    blue_btn = tk.Button(var.canvas_buttons, text="Blue", relief=tk.RAISED, command=lambda: change_color(blue_btn, "blue"))
-    blue_btn.grid(column=1, row=1, pady=5)
-
-    green_btn = tk.Button(var.canvas_buttons, text="Green", relief=tk.RAISED, command=lambda: change_color(green_btn, "green"))
-    green_btn.grid(column=2, row=1, pady=5)
-
-    yellow_btn = tk.Button(var.canvas_buttons, text="Yellow", relief=tk.RAISED, command=lambda: change_color(yellow_btn, "yellow"))
-    yellow_btn.grid(column=3, row=1, pady=5)
-
-    black_btn = tk.Button(var.canvas_buttons, text="Black", relief=tk.RAISED, command=lambda: change_color(black_btn, "black"))
-    black_btn.grid(column=4, row=1, pady=5)
-
-    white_btn = tk.Button(var.canvas_buttons, text="White", relief=tk.SUNKEN, command=lambda: change_color(white_btn, "white"))
-    white_btn.grid(column=5, row=1, pady=5)
-
-    var.old_color_button = white_btn
-    var.current_color = "white"
+    var.old_color_button = color_buttons[5]  # Set the initial old color button to white
+    var.current_color = var.color_names[5]
 
 
 def start_paint(event):
@@ -69,7 +69,9 @@ def start_paint(event):
         event.y + radius,
         fill=var.current_color,
         outline=var.current_color,
+        tags=("drawing",),
     )
+    var.image_canvas.tag_raise("mask")
     drawing_draw.ellipse(
         (event.x - radius, event.y - radius, event.x + radius, event.y + radius),
         fill=var.current_color,
@@ -83,8 +85,10 @@ def paint(event):
     # Draw a line from the last tracked position to the current mouse position
     var.image_canvas.create_line(
         var.last_x, var.last_y, event.x, event.y,
-        fill=var.current_color, width=var.slider.get(), capstyle=tk.ROUND, smooth=True
+        fill=var.current_color, width=var.slider.get(), capstyle=tk.ROUND, smooth=True,
+        tags=("drawing",),
     )
+    var.image_canvas.tag_raise("mask")
     drawing_draw.line(
         (var.last_x, var.last_y, event.x, event.y),
         fill=var.current_color,
@@ -100,8 +104,11 @@ def reset(event):
     var.last_y = None
 
 def clear_canvas():
-    var.image_canvas.delete("all")
-    drawing_image.paste("black", (0, 0, var.size + 1, var.size + 1))
+    global drawing_image, drawing_draw
+    var.image_canvas.delete("drawing")
+    drawing_image = Image.new("RGB", (var.size + 1, var.size + 1), "black")
+    drawing_draw = ImageDraw.Draw(drawing_image)
+    dead_zone()
 
 def get_cv_image():
     image = drawing_image.resize((var.size + 1, var.size + 1))
@@ -115,8 +122,24 @@ def save_drawing():
     if path:
         drawing_image.save(path)
 
-def change_color(button,color):
-    var.current_color = color
-    button.config(relief=tk.SUNKEN)
-    var.old_color_button.config(relief=tk.RAISED)
-    var.old_color_button = button
+def dead_zone():
+    var.image_canvas.delete("mask")
+    stepSize = var.size / (var.num_empty_leds + var.num_led) * var.num_empty_leds/2
+    mask_img = Image.new("RGBA", (var.size+1, var.size+1), "#D9D9D9FF")
+    draw = ImageDraw.Draw(mask_img)
+    draw.ellipse((0, 0, var.size, var.size), fill=(0, 0, 0, 0))
+    draw.ellipse((var.size/2 - stepSize, var.size/2 - stepSize, var.size/2 + stepSize, var.size/2 + stepSize), fill="#D9D9D9FF")
+    tk_mask = ImageTk.PhotoImage(mask_img, master=var.root)
+    var.image_canvas.create_image(0, 0, image=tk_mask, anchor="nw", state="disabled", tags=("mask",))
+    var.image_canvas.image = tk_mask
+
+def change_color(button,color,index):
+    if var.old_color_button == button:
+        var.current_color = colorpicker.color_picker(color, parent=var.root)
+        var.color_names[index] = var.current_color
+        button.config(bg=var.current_color, activebackground=var.current_color, fg=var.current_color, activeforeground=var.current_color)
+    else:
+        var.current_color = color
+        button.config(relief=tk.SUNKEN, borderwidth=5)
+        var.old_color_button.config(relief=tk.RAISED, borderwidth=0)
+        var.old_color_button = button

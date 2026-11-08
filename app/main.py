@@ -44,8 +44,8 @@ def convertOptions():
     var.cOptions.title("Convert Options")
     frm = ttk.Frame(var.cOptions, padding=30)
     frm.grid()
-    ttk.Button(frm, text="convert", command=convertImage).grid(column=0, row=6)
-    ttk.Button(frm, text="cancel", command=var.cOptions.destroy).grid(column=1, row=6)
+    ttk.Button(frm, text="Convert", command=convertImage).grid(column=0, row=6)
+    ttk.Button(frm, text="Cancel", command=var.cOptions.destroy).grid(column=1, row=6)
     var.vector_num = ttk.Entry(frm, width=30)
     var.vector_num.grid(column=1, row=4)
     var.vector_num.insert(0, str(var.num_vector))
@@ -159,7 +159,6 @@ def new_drawing():
 var.root = Tk()
 var.root.geometry("1600x1000")
 var.root.title("HOLO Fan Desktop")
-# var.root.configure(bg="#524F45")
 if sys.platform.startswith("win"):
     var.root.state("zoomed")
 elif sys.platform.startswith("linux"):
@@ -169,13 +168,13 @@ else:
 
 frm = ttk.Frame(var.root, padding=30)
 frm.grid()
-ttk.Button(frm, text="load image", command=fileImage).grid(column=1, row=0)
-ttk.Button(frm, text="new drawing", command=new_drawing).grid(column=2, row=0)
-ttk.Button(frm, text="convert image", command=convertOptions).grid(column=4, row=0)
+ttk.Button(frm, text="Load Image", command=fileImage).grid(column=1, row=0)
+ttk.Button(frm, text="New Drawing", command=new_drawing).grid(column=2, row=0)
+ttk.Button(frm, text="Convert Image", command=convertOptions).grid(column=4, row=0)
 ttk.Button(frm, text="Quit", command=var.root.destroy).grid(column=0, row=0)
 ttk.Button(frm, text="Send to Fan", command=sendToFan).grid(column=5, row=0)
 ttk.Button(frm, text="Fan Settings", command=FanSettings).grid(column=3, row=0)
-var.sim_button = ttk.Button(frm, text="Start sim", command=lambda: moveSim(Still=False))
+var.sim_button = ttk.Button(frm, text="Start Sim", command=lambda: moveSim(Still=False))
 var.sim_button.grid(column=6, row=0)
 
 var.image_canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")

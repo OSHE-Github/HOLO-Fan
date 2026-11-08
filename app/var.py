@@ -66,3 +66,4 @@ old_color_button = None
 canvas_buttons = None
 slider = None
 drawing_active = False
+color_names = None
