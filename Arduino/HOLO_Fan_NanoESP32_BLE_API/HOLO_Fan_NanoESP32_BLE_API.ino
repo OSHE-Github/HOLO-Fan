@@ -204,10 +204,20 @@ Adafruit_NeoPixel* blades[BLADE_COUNT];
 
 // 4. ROTATION / RPM VARIABLES
 
-// These values are changed inside an interrupt and read by normal code.
-// 'volatile' tells the compiler that they can change outside the normal flow.
+// KY-024 digital output (DO) is connected to D6.
+// A magnet should pass the sensor ONCE per complete revolution.
+//
+// The interrupt records the time of each accepted magnet detection.
+// The main loop uses that timestamp and revolution period to calculate
+// the current angular position of the fan and select the matching image vector.
 volatile uint32_t lastIndexMicros = 0;
-volatile uint32_t revolutionMicros = 100000;
+volatile uint32_t revolutionMicros = 0;
+volatile bool indexPulseSeen = false;
+
+// Set this to rotate the displayed image for physical sensor/magnet alignment.
+// 0 means image vector 0 is displayed at the instant the magnet is detected.
+// Increase/decrease this value after testing if the image is angularly offset.
+static const int16_t INDEX_VECTOR_OFFSET = 0;
 
 // 5. FILE UPLOAD AND DISPLAY STATE
 
@@ -359,21 +369,30 @@ class HoloFanServerCallbacks : public BLEServerCallbacks {
 
 // 9. ROTATION SENSOR AND RPM FUNCTIONS
 
-// This interrupt runs whenever the index sensor produces a falling edge.
-// It should produce one accepted pulse per complete fan revolution.
+// This interrupt runs on the KY-024 digital output's falling edge.
+// Position the KY-024 so the magnet triggers it once per revolution.
 //
-// Keep interrupt code short: do not print Serial messages or update LEDs here.
+// IMPORTANT: rejected noise pulses do NOT replace lastIndexMicros.
+// Otherwise a noisy sensor could corrupt the RPM and angular position.
 void IRAM_ATTR indexISR() {
   const uint32_t now = micros();
   const uint32_t previous = lastIndexMicros;
-  const uint32_t delta = now - previous;
 
-  // Ignore the first pulse and pulses that arrive too quickly.
-  if (previous != 0 && delta >= MIN_INDEX_INTERVAL_US) {
-    revolutionMicros = delta;
+  // The first detection establishes the angular zero reference.
+  if (previous == 0) {
+    lastIndexMicros = now;
+    indexPulseSeen = true;
+    return;
   }
 
-  lastIndexMicros = now;
+  const uint32_t delta = now - previous;
+
+  // Accept only plausible once-per-revolution pulses.
+  if (delta >= MIN_INDEX_INTERVAL_US) {
+    revolutionMicros = delta;
+    lastIndexMicros = now;
+    indexPulseSeen = true;
+  }
 }
 
 // Calculate RPM from the time between index pulses.
@@ -745,6 +764,10 @@ void handleControlCommand(const char* command) {
       displayRunning = true;
       lastRenderMicros = micros();
 
+      // Force the first phase-derived vector to be rendered.
+      // The actual angular reference comes from the next KY-024 pulse.
+      lastVector = UINT16_MAX;
+
       notifyDisplayStatus("RUNNING");
       Serial.println("POV display started.");
     } else {
@@ -871,7 +894,7 @@ void renderVector(uint16_t vectorIndex) {
 
 // Create the BLE server, service, and characteristics, then begin advertising.
 void setupBluetooth() {
-  Serial.println("Starting Bluetooth Low Energy...");
+  Serial.println("Starting Bluetooth");
 
   BLEDevice::init(DEVICE_NAME);
 
@@ -942,10 +965,7 @@ void setup() {
   delay(1000);
 
   Serial.println();
-  Serial.println("================================================");
-  Serial.println("             HOLO-FAN NANO ESP32");
-  Serial.println("       POV DISPLAY + BLUETOOTH FIRMWARE");
-  Serial.println("================================================");
+  Serial.println("HOLO-FAN");
 
   // Initialize the onboard RGB LED
 
@@ -956,11 +976,14 @@ void setup() {
   // Turn all RGB channels off before BLE starts
   setBoardColor(false, false, false);
 
-  // Initialize the rotation/index sensor
-
+  // Initialize the KY-024 Hall-effect sensor.
+  // Connect VCC to 3V3, GND to GND, and DO to D6.
+  // INPUT_PULLUP is used because many KY-024 comparator outputs are
+  // open-collector/open-drain style. If your module's output is active
+  // HIGH instead of active LOW, change FALLING to RISING below.
   pinMode(INDEX_PIN, INPUT_PULLUP);
 
-  // The index sensor should produce a falling edge once per revolution
+  // One falling edge should occur each time the magnet passes the sensor.
   attachInterrupt(
     digitalPinToInterrupt(INDEX_PIN),
     indexISR,
@@ -1007,41 +1030,63 @@ void loop() {
   // A short delay allows normal background tasks to run.
   delay(1);
 
-  // POV image rendering
-
+  // POV image rendering synchronized to the KY-024 index pulse.
+  //
+  // The magnet detection is the angular zero reference for each revolution.
+  // Rather than advancing vectors using a free-running timer, calculate the
+  // fan's current phase from (current time - last index pulse). This allows
+  // the image timing to follow changes in RPM.
   if (displayRunning && vectorCount > 0 && ledCount > 0) {
-    uint32_t currentRevolutionMicros;
+    uint32_t periodSnapshot;
+    uint32_t indexSnapshot;
 
-    // Read the latest measured revolution time safely.
+    // Copy ISR-updated 32-bit values atomically.
     noInterrupts();
-    currentRevolutionMicros = revolutionMicros;
+    periodSnapshot = revolutionMicros;
+    indexSnapshot = lastIndexMicros;
     interrupts();
 
-    // Divide one revolution into the number of image vectors.
-    const uint32_t vectorPeriod =
-      currentRevolutionMicros / vectorCount;
+    const uint32_t now = micros();
 
-    if (vectorPeriod > 0) {
-      const uint32_t now = micros();
+    // Wait until the first magnet detection establishes the index position.
+    if (indexSnapshot != 0 && periodSnapshot > 0) {
+      const uint32_t sinceIndex = now - indexSnapshot;
 
-      // Render when enough time has passed for the next vector.
-      if ((uint32_t)(now - lastRenderMicros) >= vectorPeriod) {
-        lastRenderMicros += vectorPeriod;
+      // If the expected pulse has been missing for too long, stop updating
+      // the image rather than free-running with an unreliable phase.
+      if (sinceIndex <= periodSnapshot * 2UL) {
+        const uint32_t phaseMicros = sinceIndex % periodSnapshot;
 
-        // If the program was delayed too long, resynchronize instead of
-        // trying to render many old vectors in a burst.
-        if ((uint32_t)(now - lastRenderMicros) > vectorPeriod * 4UL) {
-          lastRenderMicros = now;
+        // Map the current rotational phase to an image vector.
+        uint16_t targetVector =
+          (uint16_t)(((uint64_t)phaseMicros * vectorCount) /
+                     periodSnapshot);
+
+        if (targetVector >= vectorCount) {
+          targetVector = vectorCount - 1;
         }
 
-        // Advance to the next vector and display it.
-        lastVector = (lastVector + 1) % vectorCount;
-        renderVector(lastVector);
+        // Apply a user-adjustable angular alignment correction.
+        int32_t adjustedVector =
+          (int32_t)targetVector + INDEX_VECTOR_OFFSET;
+
+        while (adjustedVector < 0) {
+          adjustedVector += vectorCount;
+        }
+        adjustedVector %= vectorCount;
+        targetVector = (uint16_t)adjustedVector;
+
+        // Render only when the phase enters a different vector.
+        if (targetVector != lastVector) {
+          renderVector(targetVector);
+          lastVector = targetVector;
+        }
       }
     }
   } else {
-    // When the display is stopped, keep the timing reference current.
+    // When stopped, do not retain a stale vector selection.
     lastRenderMicros = micros();
+    lastVector = UINT16_MAX;
   }
 
   // Periodic BLE status updates
@@ -1060,23 +1105,3 @@ void loop() {
     }
   }
 }
-
-/*
- 
-  END OF HOLO-FAN FIRMWARE
- 
-  QUICK TEST:
-    1. Upload this sketch to the Nano ESP32.
-    2. Open Serial Monitor at 115200 baud.
-    3. The onboard RGB LED should be BLUE while waiting.
-    4. Connect to "Holo-Fan" using a desktop BLE scanner.
-    5. The onboard RGB LED should turn GREEN.
-    6. Disconnect; it should briefly turn RED, then BLUE again.
-    7. Write STATUS to the Control characteristic.
-    8. To upload an image, write BEGIN_FILE, send image.txt chunks to Data,
-       then write END_FILE.
-    9. Write START to display the image; write STOP to stop and clear it.
-
-  This sketch does not control the motor. Motor control must be added only
-  after the motor driver/controller and its wiring are identified.
-*/
