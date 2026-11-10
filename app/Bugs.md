@@ -1,1 +1,1 @@
-1. AttributeError when closing file system with out image (minor)
+4. comunication 
