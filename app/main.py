@@ -1,15 +1,17 @@
 import os
 import sys
 import time
+from pathlib import Path
 
 import cv2
 import tkinter as tk
-from tkinter import Tk, filedialog, ttk
+from tkinter import Tk, filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 
 import Sim_and_convert
 import var
 import Drawing
+import Bluetooth
 
 
 def fileImage():
@@ -57,7 +59,7 @@ def convertOptions():
 
 def convertImage():
     if var.drawing_active:
-        var.cv_resized_img = Drawing.get_cv_image()
+        var.cv_resized_img = var.drawing.get_cv_image()
     var.sim_button.configure(text="Start sim", command=lambda: moveSim(Still=False))
     Sim_and_convert.convert()
 
@@ -73,7 +75,7 @@ def FanSettings():
     button_frame.grid(column=0, row=6, columnspan=2, pady=(12, 0))
     ttk.Button(button_frame, text="Save", command=Sim_and_convert.saveSettings).grid(column=0, row=0)
     ttk.Button(button_frame, text="Cancel", command=var.fan_settings_popup.destroy).grid(column=1, row=0)
-    ttk.Button(button_frame, text="Pull settings from fan", command=getFanInfo).grid(column=2, row=0)
+    ttk.Button(button_frame, text="Default settings", command=getFanInfo).grid(column=2, row=0)
 
     
     var.led_num = ttk.Entry(frm, width=30)
@@ -88,11 +90,6 @@ def FanSettings():
     var.empty_leds_num.grid(column=1, row=3)
     var.empty_leds_num.insert(0, str(var.num_empty_leds))
     ttk.Label(frm, text="Size of empty center: ").grid(column=0, row=3)
-    var.ip_address_input = ttk.Entry(frm, width=30)
-    var.ip_address_input.grid(column=1, row=4)
-    var.ip_address_input.insert(0, str(var.IP_address))
-    ttk.Label(frm, text="IP Address: ").grid(column=0, row=4)
-
 
 
 def moveSim(Still = False):
@@ -110,11 +107,24 @@ def moveSim(Still = False):
     Sim_and_convert.drawSim(Still)
 
 def sendToFan():
-    print("Sending to fan...")
-    print("not implemented yet")
+    image_path = Path.cwd() / "image.txt"
+    if not image_path.is_file():
+        messagebox.showerror(
+            "Send to Fan",
+            f"Could not find {image_path}. Convert an image first.",
+            parent=var.root,
+        )
+        return
+
+    try:
+        upload = var.bluetooth.send_file(image_path)
+    except RuntimeError as error:
+        messagebox.showerror("Send to Fan", str(error), parent=var.root)
+        return
+
     var.fan_popup = tk.Toplevel(var.root)
     var.fan_popup.geometry("400x200")
-    var.fan_popup.title("")
+    var.fan_popup.title("Send to Fan")
     var.fan_popup.columnconfigure(0, weight=1)
     var.fan_popup.rowconfigure(0, weight=1)
     frm = ttk.Frame(var.fan_popup, padding=20)
@@ -125,13 +135,37 @@ def sendToFan():
     var.fan_popup.transient(var.root)
     var.fan_popup.attributes("-topmost", True)
 
-    ttk.Label(
+    upload_status = tk.StringVar(value="Starting image upload...")
+    tk.Label(
         frm,
-        text="Image sent to fan.",
-        padding=12,
-    ).grid(row=0, column=0, sticky="nsew")
+        textvariable=upload_status,
+        font="TkDefaultFont",
+        padx=12,
+        pady=12,
+        wraplength=340,
+    ).grid(
+        row=0, column=0, sticky="nsew"
+    )
 
     ttk.Button(frm, text="Close", command=var.fan_popup.destroy).grid(row=1, column=0, pady=(12, 0))
+
+    def check_upload():
+        if not var.fan_popup.winfo_exists():
+            return
+
+        if upload.done():
+            try:
+                upload.result()
+            except Exception as error:
+                upload_status.set(f"Upload failed: {error}")
+            else:
+                upload_status.set("Image uploaded and fan started.")
+            return
+
+        upload_status.set(f"Uploading image... {var.bt_status}")
+        var.root.after(100, check_upload)
+
+    check_upload()
 
 def getFanInfo():
     # pull from fan API
@@ -144,19 +178,19 @@ def getFanInfo():
 
 def updateFanInfo():
     # pull from fan API
-    var.fan_info.configure(text=f"Fan RPM: {var.fan_rpm}   IP Address: {var.IP_address}")
+    var.fan_info.configure(text=f"Fan RPM: {var.fan_rpm}   Bluetooth Status: {var.bt_status}")
     var.fan_pull = var.root.after(100, updateFanInfo) # update every 0.1 seconds
 
 # sets up a new drawing canvas
 def new_drawing():
     var.image_canvas.delete("all")
-    var.canvas_buttons.destroy()
     var.image_canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")
     var.image_canvas.grid(column=0, row=4)
-    Drawing.setup(var.root)
+    var.drawing = Drawing.Drawing(var.root)
 
 
 var.root = Tk()
+var.bluetooth = Bluetooth.bluetooth(var.root)
 var.root.geometry("1600x1000")
 var.root.title("HOLO Fan Desktop")
 if sys.platform.startswith("win"):
@@ -170,12 +204,13 @@ frm = ttk.Frame(var.root, padding=30)
 frm.grid()
 ttk.Button(frm, text="Load Image", command=fileImage).grid(column=1, row=0)
 ttk.Button(frm, text="New Drawing", command=new_drawing).grid(column=2, row=0)
-ttk.Button(frm, text="Convert Image", command=convertOptions).grid(column=4, row=0)
+ttk.Button(frm, text="Convert Image", command=convertOptions).grid(column=5, row=0)
 ttk.Button(frm, text="Quit", command=var.root.destroy).grid(column=0, row=0)
-ttk.Button(frm, text="Send to Fan", command=sendToFan).grid(column=5, row=0)
+ttk.Button(frm, text="Send to Fan", command=sendToFan).grid(column=6, row=0)
 ttk.Button(frm, text="Fan Settings", command=FanSettings).grid(column=3, row=0)
+ttk.Button(frm, text="Connect to Fan", command=var.bluetooth.connect).grid(column=4, row=0)
 var.sim_button = ttk.Button(frm, text="Start Sim", command=lambda: moveSim(Still=False))
-var.sim_button.grid(column=6, row=0)
+var.sim_button.grid(column=7, row=0)
 
 var.image_canvas = tk.Canvas(var.root, width=var.size, height=var.size, bg="black")
 var.image_canvas.grid(column=0, row=4)
@@ -186,16 +221,13 @@ status_frame.grid(column=6, row=4, sticky=tk.N, padx=(12, 0))
 var.fps_label = ttk.Label(status_frame, text=f"Simulation RPM: {var.num_rpm}   Simulation FPS: 0.0")
 var.fps_label.grid(column=0, row=0, sticky=tk.W)
 
-var.fan_info = ttk.Label(status_frame, text=f"Fan RPM: {var.fan_rpm}   IP Address: {var.IP_address}")
+var.fan_info = ttk.Label(status_frame, text=f"Fan RPM: {var.fan_rpm}   Bluetooth Status: {var.bt_status}")
 var.fan_info.grid(column=0, row=1, sticky=tk.W, pady=(6, 0))
-
-
 
 var.img = tk.PhotoImage(width=var.size, height=var.size)
 var.canvas_image = var.canvas.create_image((0, 0), image=var.img, anchor=tk.NW)
 updateFanInfo()
 
-
-Drawing.setup(var.root)
+var.drawing = Drawing.Drawing(var.root)
 
 var.root.mainloop()

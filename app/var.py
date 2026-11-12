@@ -56,14 +56,8 @@ fan_pull = None
 num_led = 25
 num_empty_leds = 8
 num_blades = 4
-IP_address = "0.0.0.0"
+bt_status = "Disconnected"
 
 # drawing
-last_x = None
-last_y = None
-current_color = "white"
-old_color_button = None
-canvas_buttons = None
-slider = None
 drawing_active = False
-color_names = None
+drawing = None
