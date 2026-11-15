@@ -14,13 +14,12 @@ def setup(root):
     drawing_draw = ImageDraw.Draw(drawing_image)
     var.drawing_active = True
     dead_zone()
-
     var.image_canvas.bind("<Button-1>", start_paint)
     var.image_canvas.bind("<B1-Motion>", paint)
     var.image_canvas.bind("<ButtonRelease-1>", reset)
     
     # Add a canvas control
-    var.canvas_buttons = tk.Frame(root, padx=30, pady=30)
+    var.canvas_buttons = tk.Frame(root, padx=30, pady=30, bg="#D9D9D9")
     var.canvas_buttons.grid(column=0, row=6, columnspan=1, pady=12)
 
     value_label = ttk.Label(var.canvas_buttons, text="Pen Size:")
@@ -106,7 +105,7 @@ def reset(event):
 def clear_canvas():
     global drawing_image, drawing_draw
     var.image_canvas.delete("drawing")
-    drawing_image = Image.new("RGB", (var.size + 1, var.size + 1), "black")
+    drawing_image = Image.new("RGB", (var.size, var.size), "black")
     drawing_draw = ImageDraw.Draw(drawing_image)
     dead_zone()
 
@@ -125,7 +124,7 @@ def save_drawing():
 def dead_zone():
     var.image_canvas.delete("mask")
     stepSize = var.size / (var.num_empty_leds + var.num_led) * var.num_empty_leds/2
-    mask_img = Image.new("RGBA", (var.size+1, var.size+1), "#D9D9D9FF")
+    mask_img = Image.new("RGBA", (var.size, var.size), "#D9D9D9FF")
     draw = ImageDraw.Draw(mask_img)
     draw.ellipse((0, 0, var.size, var.size), fill=(0, 0, 0, 0))
     draw.ellipse((var.size/2 - stepSize, var.size/2 - stepSize, var.size/2 + stepSize, var.size/2 + stepSize), fill="#D9D9D9FF")
