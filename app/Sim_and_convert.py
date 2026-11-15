@@ -13,9 +13,12 @@ import var
 
 def convert():
     var.num_rpm = int(var.RPM_value.get())
-    var.num_blades_sim = var.num_rpm // 100 * 4
+    if var.num_rpm > 5000:
+        var.num_rpm = 5000
     var.num_vector = int(var.vector_num.get())
-    
+    if var.num_vector > 499:
+            var.num_vector = 499
+    var.num_blades_sim = var.num_rpm // 100 * 4
     var.cOptions.destroy()
     var.cOptions = None
 
@@ -37,9 +40,16 @@ def convert():
 
 def saveSettings():
     var.num_blades = int(var.blades_num.get())
+    if var.num_blades > 10:
+        var.num_blades = 10
+
     var.num_empty_leds = int(var.empty_leds_num.get())
+    if var.num_empty_leds > 100:
+            var.num_empty_leds = 100
     var.num_led = int(var.led_num.get())
-    var.IP_address = var.ip_address_input.get()
+    if var.num_led > 100:
+        var.num_led = 100
+    # var.IP_address = var.ip_address_input.get()
     
     var.fan_settings_popup.destroy()
     var.fan_settings_popup = None

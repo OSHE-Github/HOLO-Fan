@@ -24,7 +24,9 @@ def fileImage():
         return
 
     var.image_canvas.delete("all")
-    var.canvas_buttons.destroy()
+    if var.drawing.canvas_buttons is not None:
+        var.drawing.canvas_buttons.destroy()
+        var.drawing.canvas_buttons = None
 
     original_img = Image.open(image_file_path)
     cv_image = cv2.imread(image_file_path)
