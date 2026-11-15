@@ -16,7 +16,7 @@ void loop ()
  int Digital;
 
  // Current value will be read and converted to the voltage
- Analog = analogRead (Analog_Eingang) * (5.0 / 1023.0);
+ Analog = analogRead (Analog_Eingang) * (3.3 /4095.0);
  Digital = digitalRead (Digital_Eingang);
 
  // and outputted here
