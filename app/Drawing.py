@@ -168,9 +168,6 @@ class Drawing():
             self.old_color_button.config(relief=tk.RAISED, borderwidth=0)
             self.old_color_button = button
     
-    # Update the last coordinates to current position
-    var.last_x, var.last_y = event.x, event.y
-
 def reset(event):
     # Reset coordinates when mouse button is released to start a new line
     var.last_x = None
