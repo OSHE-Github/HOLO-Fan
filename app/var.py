@@ -20,7 +20,7 @@ img = None
 cOptions = None
 fan_popup = None
 fan_settings_popup = None
-size = 1000
+size = 500
 sim_button = None
 
 # image

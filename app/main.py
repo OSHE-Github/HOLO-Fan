@@ -192,7 +192,14 @@ def new_drawing():
 var.root = Tk()
 var.bluetooth = Bluetooth.bluetooth(var.root)
 var.root.geometry("1600x1000")
+var.root.configure(background="#D9D9D9")
 var.root.title("HOLO Fan Desktop")
+
+style = ttk.Style()
+style.configure("TFrame", background="#D9D9D9")
+style.configure("TLabel", background="#D9D9D9")
+style.configure("TButton", background="#D9D9D9")
+
 if sys.platform.startswith("win"):
     var.root.state("zoomed")
 elif sys.platform.startswith("linux"):

@@ -168,3 +168,51 @@ class Drawing():
             self.old_color_button.config(relief=tk.RAISED, borderwidth=0)
             self.old_color_button = button
     
+    # Update the last coordinates to current position
+    var.last_x, var.last_y = event.x, event.y
+
+def reset(event):
+    # Reset coordinates when mouse button is released to start a new line
+    var.last_x = None
+    var.last_y = None
+
+def clear_canvas():
+    global drawing_image, drawing_draw
+    var.image_canvas.delete("drawing")
+    drawing_image = Image.new("RGB", (var.size, var.size), "black")
+    drawing_draw = ImageDraw.Draw(drawing_image)
+    dead_zone()
+
+def get_cv_image():
+    image = drawing_image.resize((var.size + 1, var.size + 1))
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+def save_drawing():
+    path = filedialog.asksaveasfilename(
+        defaultextension=".png",
+        filetypes=[("PNG image", "*.png")],
+    )
+    if path:
+        drawing_image.save(path)
+
+def dead_zone():
+    var.image_canvas.delete("mask")
+    stepSize = var.size / (var.num_empty_leds + var.num_led) * var.num_empty_leds/2
+    mask_img = Image.new("RGBA", (var.size, var.size), "#D9D9D9FF")
+    draw = ImageDraw.Draw(mask_img)
+    draw.ellipse((0, 0, var.size, var.size), fill=(0, 0, 0, 0))
+    draw.ellipse((var.size/2 - stepSize, var.size/2 - stepSize, var.size/2 + stepSize, var.size/2 + stepSize), fill="#D9D9D9FF")
+    tk_mask = ImageTk.PhotoImage(mask_img, master=var.root)
+    var.image_canvas.create_image(0, 0, image=tk_mask, anchor="nw", state="disabled", tags=("mask",))
+    var.image_canvas.image = tk_mask
+
+def change_color(button,color,index):
+    if var.old_color_button == button:
+        var.current_color = colorpicker.color_picker(color, parent=var.root)
+        var.color_names[index] = var.current_color
+        button.config(bg=var.current_color, activebackground=var.current_color, fg=var.current_color, activeforeground=var.current_color)
+    else:
+        var.current_color = color
+        button.config(relief=tk.SUNKEN, borderwidth=5)
+        var.old_color_button.config(relief=tk.RAISED, borderwidth=0)
+        var.old_color_button = button
