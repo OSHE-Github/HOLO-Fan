@@ -1,6 +1,6 @@
 // Declaration and initialization of the input pin
 int Analog_Eingang = A0; // X-axis-signal
-int Digital_Eingang = 7; // Button
+int Digital_Eingang = 6; // Button
 void setup ()
 {
  pinMode (Analog_Eingang, INPUT);
@@ -24,7 +24,7 @@ void loop ()
  Serial.print ("Extreme value:");
  if(Digital==1)
  {
- Serial.printSerial.println (" reached");
+ Serial.println (" reached");
  }
  else
  {

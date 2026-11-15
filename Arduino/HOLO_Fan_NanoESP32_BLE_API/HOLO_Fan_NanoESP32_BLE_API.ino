@@ -2,13 +2,6 @@
   =============================================================================
   HOLO-FAN - NANO ESP32 FIRMWARE
   =============================================================================
-
-  This sketch combines:
-    1. The original Holo-Fan POV display code.
-    2. Bluetooth Low Energy (BLE) communication.
-    3. The Nano ESP32 onboard RGB LED connection indicator.
-    4. Bluetooth commands for uploading image.txt and starting/stopping display.
-
   BOARD:
     Arduino Nano ESP32
 
