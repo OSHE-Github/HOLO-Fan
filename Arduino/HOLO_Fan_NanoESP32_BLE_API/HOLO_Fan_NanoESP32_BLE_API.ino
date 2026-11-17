@@ -955,7 +955,7 @@ void setup() {
     blades[blade]->setBrightness(LED_BRIGHTNESS);
     blades[blade]->clear();
     blades[blade]->show();
-    erial.println("LED Blades initialized");
+    Serial.println("LED Blades initialized");
 
     Serial.print("Blade ");
     Serial.print(blade + 1);
