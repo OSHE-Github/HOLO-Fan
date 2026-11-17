@@ -13,11 +13,12 @@
   ---------------------------------------------------------------------------
   HARDWARE PIN ASSIGNMENTS
   ---------------------------------------------------------------------------
-    D2 = LED data for blade 1
-    D3 = LED data for blade 2
-    D4 = LED data for blade 3
-    D5 = LED data for blade 4
-    D6 = rotation/index sensor input
+    D3 = LED data for blade 1
+    D4 = LED data for blade 2
+    D5 = LED data for blade 3
+    D6 = LED data for blade 4
+    D7 = digital hall sensor input
+    A2 = analog for hall sensor input
 
   The onboard RGB LED is controlled using the Nano ESP32 board definitions:
     LED_RED, LED_GREEN, LED_BLUE
@@ -119,10 +120,10 @@ static const uint8_t BLADE_COUNT = 4;
 // These are Arduino pin numbers, matching the labels used in the original
 // POV sketch. Check the Nano ESP32 Tools > Pin Numbering setting and your
 // physical wiring before changing them.
-static const uint8_t BLADE_PINS[BLADE_COUNT] = { D2, D3, D4, D5 };
+static const uint8_t BLADE_PINS[BLADE_COUNT] = { D3, D4, D5, D6 };
 
 // Pin connected to the once-per-revolution index sensor.
-static const uint8_t HALL_PIN = D6;
+static const uint8_t HALL_PIN = D7;
 
 // Number of LEDs on each blade.
 static const uint16_t MAX_LEDS = 25;
@@ -195,7 +196,7 @@ Adafruit_NeoPixel* blades[BLADE_COUNT];
 
 // 4. ROTATION / RPM VARIABLES
 
-// KY-024 digital output (DO) is connected to D6.
+// KY-024 digital outpu is connected to D7 and A2 for analog.
 // A magnet should pass the sensor ONCE per complete revolution.
 //
 // The interrupt records the time of each accepted magnet detection.
