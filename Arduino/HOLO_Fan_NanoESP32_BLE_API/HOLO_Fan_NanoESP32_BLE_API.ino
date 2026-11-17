@@ -107,6 +107,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 // 1. USER SETTINGS / HARDWARE CONFIGURATION
 
@@ -121,7 +122,7 @@ static const uint8_t BLADE_COUNT = 4;
 static const uint8_t BLADE_PINS[BLADE_COUNT] = { D2, D3, D4, D5 };
 
 // Pin connected to the once-per-revolution index sensor.
-static const uint8_t INDEX_PIN = D6;
+static const uint8_t HALL_PIN = D6;
 
 // Number of LEDs on each blade.
 static const uint16_t MAX_LEDS = 25;
@@ -140,8 +141,7 @@ static const uint8_t LED_BRIGHTNESS = 30;
 // after the previous accepted pulse. This helps reject electrical noise.
 static const uint32_t MIN_INDEX_INTERVAL_US = 30000;
 
-// A vector line contains 25 colors, each normally 6 hex digits, optional '#',
-// and commas. This buffer is sized to allow the full line.
+// A vector line contains 25 colors, each normally 6 hex digits, optional '#', and commas. This buffer is sized to allow the full line.
 static const uint16_t MAX_LINE_CHARS = (MAX_LEDS * 8) + 4;
 
 // BLE device name shown in a BLE scanner on a desktop or phone.
@@ -181,10 +181,8 @@ volatile bool deviceConnected = false;
 //   activeFrame    = the image currently available for display
 //   receivingFrame = the image currently being uploaded
 //
-// The two-buffer approach prevents a partially uploaded image from replacing
-// the current display image before END_FILE validates the upload.
-static const uint32_t MAX_FRAME_BYTES =
-  (uint32_t)MAX_VECTORS * MAX_LEDS * 3UL;
+// The two-buffer approach prevents a partially uploaded image from replacing the current display image before END_FILE validates the upload.
+static const uint32_t MAX_FRAME_BYTES = (uint32_t)MAX_VECTORS * MAX_LEDS * 3UL;
 
 uint8_t frameA[MAX_FRAME_BYTES];
 uint8_t frameB[MAX_FRAME_BYTES];
@@ -201,14 +199,18 @@ Adafruit_NeoPixel* blades[BLADE_COUNT];
 // A magnet should pass the sensor ONCE per complete revolution.
 //
 // The interrupt records the time of each accepted magnet detection.
-// The main loop uses that timestamp and revolution period to calculate
-// the current angular position of the fan and select the matching image vector.
+// The main loop uses that timestamp and revolution period to calculate the current angular position of the fan and select the matching image vector.
 volatile uint32_t lastIndexMicros = 0;
 volatile uint32_t revolutionMicros = 0;
 volatile bool indexPulseSeen = false;
 
-// Set this to rotate the displayed image for physical sensor/magnet alignment.
-// 0 means image vector 0 is displayed at the instant the magnet is detected.
+//Counters make it easier to see whether the desktop is sending the complete file before END_FILE is received.
+
+uint16_t lastReportedUploadRow = 0;
+volatile bool pendingFileOkNotification = false;
+
+
+// Set this to rotate the displayed image for physical sensor/magnet alignment. 0 means image vector 0 is displayed at the instant the magnet is detected. 
 // Increase/decrease this value after testing if the image is angularly offset.
 static const int16_t INDEX_VECTOR_OFFSET = 0;
 
@@ -224,8 +226,7 @@ uint16_t fileLineNumber = 0;
 // Current length of the line being assembled from BLE data chunks.
 uint16_t lineLength = 0;
 
-// BLE sends chunks, not necessarily whole text lines. This buffer joins
-// chunks together until a newline character is received.
+// BLE sends chunks, not necessarily whole text lines. This buffer joins chunks together until a newline character is received.
 char lineBuffer[MAX_LINE_CHARS + 1];
 
 // File and display state flags.
@@ -245,16 +246,11 @@ uint32_t lastRenderMicros = 0;
 // Current vector index.
 uint16_t lastVector = 0;
 
-// 6. ONBOARD RGB LED STATUS FUNCTIONS
-
-// Set the three channels of the Nano ESP32's onboard RGB LED.
-//
+// 6. Nano Bluetooth connection RGB LED 
 // The channels are treated as active LOW:
 //   turn channel on  -> write LOW
 //   turn channel off -> write HIGH
-//
-// If the LED behaves unexpectedly, verify the pin definitions and board
-// revision before changing the active-low behavior.
+
 void setBoardColor(bool redOn, bool greenOn, bool blueOn) {
   digitalWrite(LED_RED,   redOn   ? LOW : HIGH);
   digitalWrite(LED_GREEN, greenOn ? LOW : HIGH);
@@ -262,26 +258,17 @@ void setBoardColor(bool redOn, bool greenOn, bool blueOn) {
 }
 
 // Blue means the Nano is advertising and waiting for a BLE connection.
-void showAdvertisingColor() {
-  setBoardColor(false, false, true);
-}
-
+void showAdvertisingColor() {setBoardColor(false, false, true);}
 // Green means a BLE client is connected.
-void showConnectedColor() {
-  setBoardColor(false, true, false);
-}
-
+void showConnectedColor() {setBoardColor(false, true, false);}
 // Red is shown briefly after a BLE client disconnects.
-void showDisconnectedColor() {
-  setBoardColor(true, false, false);
-}
+void showDisconnectedColor() {setBoardColor(true, false, false);}
 
 // 7. BLUETOOTH STATUS MESSAGE FUNCTION
 
 // Send a text message to the Status characteristic.
-//
-// The status characteristic supports READ and NOTIFY. A BLE client can read
-// the current value, or subscribe to notifications to receive updates.
+// The status characteristic supports READ and NOTIFY. A BLE client can read the current value, or subscribe to notifications to receive updates.
+//Also appears in the pop-up window of the desktop app
 void sendStatusText(const char* message) {
   if (statusCharacteristic == nullptr) {
     return;
@@ -298,41 +285,25 @@ void sendStatusText(const char* message) {
 }
 
 // Format a compact status string containing the display state and settings.
-// Keep this message short because BLE characteristic values have a finite
-// maximum length.
+// Keep this message short because BLE characteristic values have a finite maximum length.
 void notifyDisplayStatus(const char* state) {
   char message[80];
-
-  snprintf(
-    message,
-    sizeof(message),
-    "%s,R%lu,L%u,B%u,D%u",
-    state,
-    (unsigned long)getRPM(),
-    ledCount,
-    BLADE_COUNT,
-    DEAD_SPACE_LEDS
-  );
-
+  snprintf(message, sizeof(message),"%s - R:%lu,L:%u,B:%u",state,(unsigned long)getRPM(),ledCount, BLADE_COUNT);
   sendStatusText(message);
 }
 
 // 8. BLE SERVER CALLBACKS
 
-// These callbacks are called by the BLE library when a client connects or
-// disconnects. They also change the onboard RGB LED.
+// These callbacks are called by the BLE library when a client connects or disconnects. They also change the onboard RGB LED.
 class HoloFanServerCallbacks : public BLEServerCallbacks {
 
   void onConnect(BLEServer* server) override {
     deviceConnected = true;
 
-    // Green tells us a computer/phone connected successfully.
     showConnectedColor();
-
     Serial.println();
     Serial.println("====================================");
     Serial.println("BLUETOOTH CLIENT CONNECTED");
-    Serial.println("RGB STATUS LED: GREEN");
     Serial.println("====================================");
 
     sendStatusText("CONNECTED - Holo-Fan ready");
@@ -341,11 +312,8 @@ class HoloFanServerCallbacks : public BLEServerCallbacks {
   void onDisconnect(BLEServer* server) override {
     deviceConnected = false;
 
-    // Brief red indication makes a disconnect visible.
     showDisconnectedColor();
-
     Serial.println("BLUETOOTH CLIENT DISCONNECTED");
-    Serial.println("RGB STATUS LED: RED");
 
     delay(250);
 
@@ -354,9 +322,6 @@ class HoloFanServerCallbacks : public BLEServerCallbacks {
 
     // Blue means advertising has resumed.
     showAdvertisingColor();
-
-    Serial.println("Advertising again as Holo-Fan");
-    Serial.println("RGB STATUS LED: BLUE");
   }
 };
 
@@ -412,7 +377,7 @@ uint32_t getRPM() {
   return 60000000UL / revUs;
 }
 
-// 10. LED STRIP HELPER FUNCTIONS
+// 10. LED board HELPER FUNCTIONS
 
 // Turn off all LEDs on all four blades.
 void clearBlades() {
@@ -422,8 +387,7 @@ void clearBlades() {
   }
 }
 
-// Convert one hexadecimal character into a number from 0 to 15.
-// Return -1 if the character is not a valid hexadecimal digit.
+// Convert one hexadecimal character into a number from 0 to 15. Return -1 if the character is not a valid hexadecimal digit.
 int hexNibble(char c) {
   if (c >= '0' && c <= '9') return c - '0';
   if (c >= 'a' && c <= 'f') return 10 + c - 'a';
@@ -459,8 +423,7 @@ bool parseColor(const char* token, uint8_t& red, uint8_t& green, uint8_t& blue) 
   return true;
 }
 
-// Remove spaces/tabs at the beginning and spaces/tabs/carriage returns
-// at the end of a line.
+// Remove spaces/tabs at the beginning and spaces/tabs/carriage returns at the end of a line.
 void trimLine(char* text) {
   size_t start = 0;
 
@@ -474,10 +437,7 @@ void trimLine(char* text) {
 
   size_t length = strlen(text);
 
-  while (length > 0 &&
-         (text[length - 1] == ' ' ||
-          text[length - 1] == '\t' ||
-          text[length - 1] == '\r')) {
+  while (length > 0 && (text[length - 1] == ' ' || text[length - 1] == '\t' || text[length - 1] == '\r')) {
     text[--length] = '\0';
   }
 }
@@ -485,9 +445,7 @@ void trimLine(char* text) {
 // 11. IMAGE.TXT PARSER
 
 // Parse one vector line.
-//
-// A vector line must contain exactly 25 comma-separated colors.
-// Each color must be six hexadecimal digits, optionally preceded by '#'.
+// A vector line must contain exactly 25 comma-separated colors. Each color must be six hexadecimal digits, optionally preceded by '#'.
 bool parseVectorLine(char* text) {
   if (fileRowsParsed >= fileExpectedVectors) {
     return false;
@@ -517,8 +475,7 @@ bool parseVectorLine(char* text) {
     }
 
     // Calculate where this color belongs in the receiving image buffer.
-    const uint32_t offset =
-      ((uint32_t)fileRowsParsed * MAX_LEDS + colorCount) * 3UL;
+    const uint32_t offset = ((uint32_t)fileRowsParsed * MAX_LEDS + colorCount) * 3UL;
 
     receivingFrame[offset]     = red;
     receivingFrame[offset + 1] = green;
@@ -603,14 +560,15 @@ void failFile(const char* reason) {
   strncpy(lastError, reason, sizeof(lastError) - 1);
   lastError[sizeof(lastError) - 1] = '\0';
 
-  sendStatusText(lastError);
-
   Serial.print("Image upload failed: ");
   Serial.println(lastError);
+  Serial.print("[UPLOAD] Valid rows: ");
+  Serial.println(fileRowsParsed);
+
+  sendStatusText(lastError);
 }
 
-// Add one received byte to the line buffer.
-// A newline means the current line is complete and can be parsed.
+// Add one received byte to the line buffer. A newline means the current line is complete and can be parsed.
 void acceptTextByte(uint8_t value) {
   if (!receivingFile || fileFailed) {
     return;
@@ -630,6 +588,12 @@ void acceptTextByte(uint8_t value) {
 
     if (!lineIsValid) {
       failFile("ERR_BAD_LINE");
+    } else if (fileRowsParsed > 0 && fileRowsParsed % 10 == 0 && fileRowsParsed != lastReportedUploadRow) {
+      lastReportedUploadRow = fileRowsParsed;
+      Serial.print("[UPLOAD] Validated rows: ");
+      Serial.print(fileRowsParsed);
+      Serial.print(" / ");
+      Serial.println(fileExpectedVectors);
     }
 
     return;
@@ -659,39 +623,59 @@ void beginFile() {
   fileLineNumber = 0;
   lineLength = 0;
   ledCount = 0;
+  lastReportedUploadRow = 0;
+  pendingFileOkNotification = false;
 
   // Clear only the receiving buffer. The active display buffer is untouched.
   memset(receivingFrame, 0, MAX_FRAME_BYTES);
 
+  Serial.println("[UPLOAD] BEGIN_FILE accepted.");
+  Serial.println("[UPLOAD] Waiting for image.txt data...");
   sendStatusText("FILE_READY");
-  Serial.println("Ready to receive image.txt");
 }
 
 // Finish and validate an image upload.
 void endFile() {
+
+  Serial.println("[UPLOAD] END_FILE received; starting final validation.");
+  Serial.print("[UPLOAD] Parsed rows before final line: ");
+  Serial.println(fileRowsParsed);
+
   if (!receivingFile && fileFailed) {
+    Serial.println("[UPLOAD] Cannot finish: an earlier parsing error occurred.");
     sendStatusText(lastError[0] ? lastError : "ERR_FILE");
     return;
   }
 
   if (!receivingFile) {
+    Serial.println("[UPLOAD] ERROR: END_FILE received without BEGIN_FILE.");
     sendStatusText("ERR_NO_FILE");
     return;
   }
 
   // Process the last line if the file did not end with a newline character.
   if (lineLength > 0) {
+    Serial.println("[UPLOAD] Processing final line (file has no trailing newline).");
     lineBuffer[lineLength] = '\0';
 
     if (!processFileLine(lineBuffer)) {
+      
       failFile("ERR_BAD_LINE");
       return;
     }
 
     lineLength = 0;
   }
-
+  
   receivingFile = false;
+
+  Serial.println("[UPLOAD] Checking vector count and LED count...");
+  Serial.print("[UPLOAD] Expected vectors: ");
+  Serial.println(fileExpectedVectors);
+  Serial.print("[UPLOAD] Parsed vectors: ");
+  Serial.println(fileRowsParsed);
+  Serial.print("[UPLOAD] LEDs per vector: ");
+  Serial.println(ledCount);
 
   // Check that the received file contains the expected number of vectors.
   if (fileExpectedVectors == 0 ||
@@ -701,6 +685,9 @@ void endFile() {
     return;
   }
 
+  Serial.println("[UPLOAD] Validation passed. Activating new image buffer...");
+
+
   // The file is valid. Swap the buffers so the new image becomes active.
   vectorCount = fileExpectedVectors;
 
@@ -708,12 +695,14 @@ void endFile() {
   activeFrame = receivingFrame;
   receivingFrame = oldActiveFrame;
 
-  lastVector = 0;
+  lastVector = UINT16_MAX;
 
   notifyDisplayStatus("FILE_OK");
 
   Serial.print("Image upload complete. Vectors: ");
   Serial.println(vectorCount);
+
+  pendingFileOkNotification = true;
 }
 
 // 12. CONTROL COMMAND HANDLER
@@ -750,10 +739,7 @@ void handleControlCommand(const char* command) {
 
   else if (strcmp(command, "START") == 0) {
     // Do not start unless a valid image has been uploaded.
-    if (vectorCount > 0 &&
-        ledCount == MAX_LEDS &&
-        !receivingFile &&
-        !fileFailed) {
+    if (vectorCount > 0 && ledCount == MAX_LEDS && !receivingFile && !fileFailed) {
       displayRunning = true;
       lastRenderMicros = micros();
 
@@ -837,13 +823,8 @@ class DataWriteCallbacks : public BLECharacteristicCallbacks {
 // 14. POV RENDERING
 
 // Display one angular vector on all four blades.
-//
-// The existing design divides the vector count into four sections so each
-// blade displays a different quarter of the image at the same instant.
-//
-// NOTE: vectorCount should ideally be divisible by four for equal sections.
-// The existing modulo-based behavior is retained from the supplied sketch.
-//
+// The existing design divides the vector count into four sections so each blade displays a different quarter of the image at the same instant.
+// NOTE: vectorCount should ideally be divisible by four for equal sections. The existing modulo-based behavior is retained from the supplied sketch.
 // The two innermost LEDs on every blade are forced off to create dead space.
 void renderVector(uint16_t vectorIndex) {
   if (vectorCount == 0 || ledCount == 0) {
@@ -853,8 +834,7 @@ void renderVector(uint16_t vectorIndex) {
   const uint16_t bladeOffset = vectorCount / BLADE_COUNT;
 
   for (uint8_t blade = 0; blade < BLADE_COUNT; ++blade) {
-    const uint16_t sourceVector =
-      (vectorIndex + blade * bladeOffset) % vectorCount;
+    const uint16_t sourceVector = (vectorIndex + blade * bladeOffset) % vectorCount;
 
     for (uint16_t led = 0; led < MAX_LEDS; ++led) {
       uint8_t red = 0;
@@ -863,18 +843,14 @@ void renderVector(uint16_t vectorIndex) {
 
       // Keep the first two LEDs dark.
       if (led >= DEAD_SPACE_LEDS) {
-        const uint32_t index =
-          ((uint32_t)sourceVector * MAX_LEDS + led) * 3UL;
+        const uint32_t index = ((uint32_t)sourceVector * MAX_LEDS + led) * 3UL;
 
         red   = activeFrame[index];
         green = activeFrame[index + 1];
         blue  = activeFrame[index + 2];
       }
 
-      blades[blade]->setPixelColor(
-        led,
-        blades[blade]->Color(red, green, blue)
-      );
+      blades[blade]->setPixelColor(led, blades[blade]->Color(red, green, blue));
     }
 
     // Send the prepared color data to this blade's LED strip.
@@ -901,9 +877,7 @@ void setupBluetooth() {
   // Control characteristic:
   // The desktop writes short commands such as START, STOP, and BEGIN_FILE.
   controlCharacteristic = service->createCharacteristic(
-    CONTROL_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_WRITE
+    CONTROL_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE
   );
 
   controlCharacteristic->setValue("Ready");
@@ -912,9 +886,7 @@ void setupBluetooth() {
   // Data characteristic:
   // The desktop writes image.txt data in chunks of up to 20 bytes.
   dataCharacteristic = service->createCharacteristic(
-    DATA_UUID,
-    BLECharacteristic::PROPERTY_WRITE |
-    BLECharacteristic::PROPERTY_WRITE_NR
+    DATA_UUID,BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
   );
 
   dataCharacteristic->setCallbacks(new DataWriteCallbacks());
@@ -922,9 +894,7 @@ void setupBluetooth() {
   // Status characteristic:
   // The desktop can read this value and subscribe to notifications.
   statusCharacteristic = service->createCharacteristic(
-    STATUS_UUID,
-    BLECharacteristic::PROPERTY_READ |
-    BLECharacteristic::PROPERTY_NOTIFY
+    STATUS_UUID,BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
   );
 
   // BLE2902 descriptor enables notification subscription in common BLE apps.
@@ -947,7 +917,7 @@ void setupBluetooth() {
   Serial.println("BLE READY");
   Serial.print("Device name: ");
   Serial.println(DEVICE_NAME);
-  Serial.println("RGB LED BLUE = waiting for connection");
+  Serial.println("Waiting for connection");
 }
 
 // 16. ARDUINO SETUP
@@ -959,45 +929,32 @@ void setup() {
 
   Serial.println();
   Serial.println("HOLO-FAN");
-
-  // Initialize the onboard RGB LED
-
-  pinMode(LED_RED, OUTPUT);
-  pinMode(LED_GREEN, OUTPUT);
-  pinMode(LED_BLUE, OUTPUT);
+  Serial.println();
 
   // Turn all RGB channels off before BLE starts
   setBoardColor(false, false, false);
 
   // Initialize the KY-024 Hall-effect sensor.
-  // Connect VCC to 3V3, GND to GND, and DO to D6.
   // INPUT_PULLUP is used because many KY-024 comparator outputs are
   // open-collector/open-drain style. If your module's output is active
   // HIGH instead of active LOW, change FALLING to RISING below.
-  pinMode(INDEX_PIN, INPUT_PULLUP);
+  pinMode(HALL_PIN, INPUT_PULLUP);
 
   // One falling edge should occur each time the magnet passes the sensor.
-  attachInterrupt(
-    digitalPinToInterrupt(INDEX_PIN),
-    indexISR,
-    FALLING
-  );
+  attachInterrupt(digitalPinToInterrupt(HALL_PIN), indexISR, FALLING);
 
   // Initialize the four NeoPixel blade strips
 
   Serial.println("Initializing LED blades...");
 
   for (uint8_t blade = 0; blade < BLADE_COUNT; ++blade) {
-    blades[blade] = new Adafruit_NeoPixel(
-      MAX_LEDS,
-      BLADE_PINS[blade],
-      NEO_GRB + NEO_KHZ800
-    );
+    blades[blade] = new Adafruit_NeoPixel(MAX_LEDS,BLADE_PINS[blade], NEO_GRB + NEO_KHZ800);
 
     blades[blade]->begin();
     blades[blade]->setBrightness(LED_BRIGHTNESS);
     blades[blade]->clear();
     blades[blade]->show();
+    erial.println("LED Blades initialized");
 
     Serial.print("Blade ");
     Serial.print(blade + 1);
@@ -1011,7 +968,7 @@ void setup() {
 
   Serial.println("-----------------------------------------------");
   Serial.println("Setup complete.");
-  Serial.println("Blue RGB LED: waiting for Bluetooth connection.");
+  Serial.println("Waiting for Bluetooth connection.");
   Serial.println("Send STATUS to check the device.");
   Serial.println("-----------------------------------------------");
 }
@@ -1082,6 +1039,11 @@ void loop() {
     lastVector = UINT16_MAX;
   }
 
+ // Send the successful upload notification from loop(), not from the BLE control-write callback. This avoids doing BLE notification work while the BLE stack is still handling END_FILE.
+  if (pendingFileOkNotification) {
+    pendingFileOkNotification = false;
+    notifyDisplayStatus("FILE_OK");
+  }
   // Periodic BLE status updates
 
   if (deviceConnected && millis() - lastStatusMs >= 1000) {
