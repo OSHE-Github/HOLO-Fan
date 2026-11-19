@@ -281,8 +281,8 @@ void sendStatusText(const char* message) {
     statusCharacteristic->notify();
   }
 
-  Serial.print("[BLE STATUS] ");
-  Serial.println(message);
+  // Serial.print("[BLE STATUS] ");
+  // Serial.println(message);
 }
 
 // Format a compact status string containing the display state and settings.
@@ -302,10 +302,10 @@ class HoloFanServerCallbacks : public BLEServerCallbacks {
     deviceConnected = true;
 
     showConnectedColor();
-    Serial.println();
-    Serial.println("====================================");
-    Serial.println("BLUETOOTH CLIENT CONNECTED");
-    Serial.println("====================================");
+    // Serial.println();
+    // Serial.println("====================================");
+    // Serial.println("BLUETOOTH CLIENT CONNECTED");
+    // Serial.println("====================================");
 
     sendStatusText("CONNECTED - Holo-Fan ready");
   }
@@ -314,7 +314,7 @@ class HoloFanServerCallbacks : public BLEServerCallbacks {
     deviceConnected = false;
 
     showDisconnectedColor();
-    Serial.println("BLUETOOTH CLIENT DISCONNECTED");
+    // Serial.println("BLUETOOTH CLIENT DISCONNECTED");
 
     delay(250);
 
@@ -561,10 +561,10 @@ void failFile(const char* reason) {
   strncpy(lastError, reason, sizeof(lastError) - 1);
   lastError[sizeof(lastError) - 1] = '\0';
 
-  Serial.print("Image upload failed: ");
-  Serial.println(lastError);
-  Serial.print("[UPLOAD] Valid rows: ");
-  Serial.println(fileRowsParsed);
+  // Serial.print("Image upload failed: ");
+  // Serial.println(lastError);
+  // Serial.print("[UPLOAD] Valid rows: ");
+  // Serial.println(fileRowsParsed);
 
   sendStatusText(lastError);
 }
@@ -591,10 +591,10 @@ void acceptTextByte(uint8_t value) {
       failFile("ERR_BAD_LINE");
     } else if (fileRowsParsed > 0 && fileRowsParsed % 10 == 0 && fileRowsParsed != lastReportedUploadRow) {
       lastReportedUploadRow = fileRowsParsed;
-      Serial.print("[UPLOAD] Validated rows: ");
-      Serial.print(fileRowsParsed);
-      Serial.print(" / ");
-      Serial.println(fileExpectedVectors);
+      // Serial.print("[UPLOAD] Validated rows: ");
+      // Serial.print(fileRowsParsed);
+      // Serial.print(" / ");
+      // Serial.println(fileExpectedVectors);
     }
 
     return;
@@ -630,33 +630,33 @@ void beginFile() {
   // Clear only the receiving buffer. The active display buffer is untouched.
   memset(receivingFrame, 0, MAX_FRAME_BYTES);
 
-  Serial.println("[UPLOAD] BEGIN_FILE accepted.");
-  Serial.println("[UPLOAD] Waiting for image.txt data...");
+  // Serial.println("[UPLOAD] BEGIN_FILE accepted.");
+  // Serial.println("[UPLOAD] Waiting for image.txt data...");
   sendStatusText("FILE_READY");
 }
 
 // Finish and validate an image upload.
 void endFile() {
 
-  Serial.println("[UPLOAD] END_FILE received; starting final validation.");
-  Serial.print("[UPLOAD] Parsed rows before final line: ");
-  Serial.println(fileRowsParsed);
+  // Serial.println("[UPLOAD] END_FILE received; starting final validation.");
+  // Serial.print("[UPLOAD] Parsed rows before final line: ");
+  // Serial.println(fileRowsParsed);
 
   if (!receivingFile && fileFailed) {
-    Serial.println("[UPLOAD] Cannot finish: an earlier parsing error occurred.");
+    // Serial.println("[UPLOAD] Cannot finish: an earlier parsing error occurred.");
     sendStatusText(lastError[0] ? lastError : "ERR_FILE");
     return;
   }
 
   if (!receivingFile) {
-    Serial.println("[UPLOAD] ERROR: END_FILE received without BEGIN_FILE.");
+    // Serial.println("[UPLOAD] ERROR: END_FILE received without BEGIN_FILE.");
     sendStatusText("ERR_NO_FILE");
     return;
   }
 
   // Process the last line if the file did not end with a newline character.
   if (lineLength > 0) {
-    Serial.println("[UPLOAD] Processing final line (file has no trailing newline).");
+    // Serial.println("[UPLOAD] Processing final line (file has no trailing newline).");
     lineBuffer[lineLength] = '\0';
 
     if (!processFileLine(lineBuffer)) {
@@ -670,13 +670,13 @@ void endFile() {
   
   receivingFile = false;
 
-  Serial.println("[UPLOAD] Checking vector count and LED count...");
-  Serial.print("[UPLOAD] Expected vectors: ");
-  Serial.println(fileExpectedVectors);
-  Serial.print("[UPLOAD] Parsed vectors: ");
-  Serial.println(fileRowsParsed);
-  Serial.print("[UPLOAD] LEDs per vector: ");
-  Serial.println(ledCount);
+  // Serial.println("[UPLOAD] Checking vector count and LED count...");
+  // Serial.print("[UPLOAD] Expected vectors: ");
+  // Serial.println(fileExpectedVectors);
+  // Serial.print("[UPLOAD] Parsed vectors: ");
+  // Serial.println(fileRowsParsed);
+  // Serial.print("[UPLOAD] LEDs per vector: ");
+  // Serial.println(ledCount);
 
   // Check that the received file contains the expected number of vectors.
   if (fileExpectedVectors == 0 ||
@@ -686,7 +686,7 @@ void endFile() {
     return;
   }
 
-  Serial.println("[UPLOAD] Validation passed. Activating new image buffer...");
+  // Serial.println("[UPLOAD] Validation passed. Activating new image buffer...");
 
 
   // The file is valid. Swap the buffers so the new image becomes active.
@@ -700,8 +700,8 @@ void endFile() {
 
   notifyDisplayStatus("FILE_OK");
 
-  Serial.print("Image upload complete. Vectors: ");
-  Serial.println(vectorCount);
+  // Serial.print("Image upload complete. Vectors: ");
+  // Serial.println(vectorCount);
 
   pendingFileOkNotification = true;
 }
@@ -710,8 +710,8 @@ void endFile() {
 
 // Run a command received through the BLE Control characteristic.
 void handleControlCommand(const char* command) {
-  Serial.print("[CONTROL COMMAND] ");
-  Serial.println(command);
+  // Serial.print("[CONTROL COMMAND] ");
+  // Serial.println(command);
 
   if (strcmp(command, "STATUS") == 0) {
     if (receivingFile) {
@@ -735,7 +735,7 @@ void handleControlCommand(const char* command) {
     displayRunning = false;
     clearBlades();
     notifyDisplayStatus("STOPPED");
-    Serial.println("POV display stopped.");
+    // Serial.println("POV display stopped.");
   }
 
   else if (strcmp(command, "START") == 0) {
@@ -749,16 +749,16 @@ void handleControlCommand(const char* command) {
       lastVector = UINT16_MAX;
 
       notifyDisplayStatus("RUNNING");
-      Serial.println("POV display started.");
+      // Serial.println("POV display started.");
     } else {
       sendStatusText("ERR_NOT_READY");
-      Serial.println("Cannot start: no valid image is loaded.");
+      // Serial.println("Cannot start: no valid image is loaded.");
     }
   }
 
   else {
     sendStatusText("ERR_COMMAND");
-    Serial.println("Unknown control command.");
+    // Serial.println("Unknown control command.");
   }
 }
 
@@ -864,7 +864,7 @@ void renderVector(uint16_t vectorIndex) {
 
 // Create the BLE server, service, and characteristics, then begin advertising.
 void setupBluetooth() {
-  Serial.println("Starting Bluetooth");
+  // Serial.println("Starting Bluetooth");
 
   BLEDevice::init(DEVICE_NAME);
 
@@ -915,22 +915,22 @@ void setupBluetooth() {
   // Blue indicates that the device is ready and waiting for a client.
   showAdvertisingColor();
 
-  Serial.println("BLE READY");
-  Serial.print("Device name: ");
-  Serial.println(DEVICE_NAME);
-  Serial.println("Waiting for connection");
+  // Serial.println("BLE READY");
+  // Serial.print("Device name: ");
+  // Serial.println(DEVICE_NAME);
+  // Serial.println("Waiting for connection");
 }
 
 // 16. ARDUINO SETUP
 
 void setup() {
   // Start serial communication for debugging.
-  Serial.begin(115200);
+ // Serial.begin(115200);
   delay(1000);
 
-  Serial.println();
-  Serial.println("HOLO-FAN");
-  Serial.println();
+  // Serial.println();
+  // Serial.println("HOLO-FAN");
+  // Serial.println();
 
   // Turn all RGB channels off before BLE starts
   setBoardColor(false, false, false);
@@ -946,7 +946,7 @@ void setup() {
 
   // Initialize the four NeoPixel blade strips
 
-  Serial.println("Initializing LED blades...");
+  // Serial.println("Initializing LED blades...");
 
   for (uint8_t blade = 0; blade < BLADE_COUNT; ++blade) {
     blades[blade] = new Adafruit_NeoPixel(MAX_LEDS,BLADE_PINS[blade], NEO_GRB + NEO_KHZ800);
@@ -955,23 +955,23 @@ void setup() {
     blades[blade]->setBrightness(LED_BRIGHTNESS);
     blades[blade]->clear();
     blades[blade]->show();
-    Serial.println("LED Blades initialized");
+    // Serial.println("LED Blades initialized");
 
-    Serial.print("Blade ");
-    Serial.print(blade + 1);
-    Serial.print(" initialized on pin D");
-    Serial.println(BLADE_PINS[blade]);
+    //Serial.print("Blade ");
+    //Serial.print(blade + 1);
+    //Serial.print(" initialized on pin D");
+    // Serial.println(BLADE_PINS[blade]);
   }
 
   // Initialize Bluetooth
 
   setupBluetooth();
 
-  Serial.println("-----------------------------------------------");
-  Serial.println("Setup complete.");
-  Serial.println("Waiting for Bluetooth connection.");
-  Serial.println("Send STATUS to check the device.");
-  Serial.println("-----------------------------------------------");
+  // Serial.println("-----------------------------------------------");
+  // Serial.println("Setup complete.");
+  // Serial.println("Waiting for Bluetooth connection.");
+  // Serial.println("Send STATUS to check the device.");
+  // Serial.println("-----------------------------------------------");
 }
 
 // 17. ARDUINO MAIN LOOP
