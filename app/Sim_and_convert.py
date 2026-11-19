@@ -18,7 +18,7 @@ def convert():
     var.num_vector = int(var.vector_num.get())
     if var.num_vector > 499:
             var.num_vector = 499
-    var.num_blades_sim = var.num_rpm // 100 * 4
+    var.num_blades_sim = var.num_rpm // 100 * var.num_blades *2
     var.cOptions.destroy()
     var.cOptions = None
 
