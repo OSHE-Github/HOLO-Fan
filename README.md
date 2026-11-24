@@ -15,16 +15,27 @@ The HOLO-Fan project is
 ## Project Structure
 The repository is organized as follows:
 1. **Arduino** - 
+ 
  Link: [Arduino](Arduino)
+ 
 2. **PCB** -
+ 
  Link: [PCB](PCB)
+ 
 3. **Release** - Download app for simulation for holofan
+ 
  Link: [Release](Releases)
+ 
 4. **Step** -
+ 
  Link: [Step](Step)
+ 
 5. **App** - 
+ 
  Link: [app](app)
+ 
 6. **Documents** -
+ 
  Link: [Documnets](Documents)
 
 ## Features
