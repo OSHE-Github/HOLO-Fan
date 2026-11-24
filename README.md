@@ -44,7 +44,6 @@ The repository is organized as follows:
 - 
 
 ## System 
-Core system components include:
 - 
 
 ## Bill of Materials
