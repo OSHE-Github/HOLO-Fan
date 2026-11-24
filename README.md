@@ -3,7 +3,7 @@ This project is about designing and building an open-source holographic display 
 
 ## Project Details
 The HOLO-Fan project is
-<./Documents/OSHE_Logo_300PPI.png>
+![logo](./Documents/OSHE_Logo_300PPI.png)
 
 ## Current State
 - A functional motor and slip ring
