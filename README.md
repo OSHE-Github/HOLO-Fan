@@ -16,27 +16,27 @@ The HOLO-Fan project is
 The repository is organized as follows:
 1. **Arduino** - 
  
- Link: [Arduino](Arduino)
+   Link: [Arduino](Arduino)
  
 2. **PCB** -
  
- Link: [PCB](PCB)
+   Link: [PCB](PCB)
  
 3. **Release** - Download app for simulation for holofan
  
- Link: [Release](Releases)
+   Link: [Release](Releases)
  
 4. **Step** -
  
- Link: [Step](Step)
+   Link: [Step](Step)
  
 5. **App** - 
  
- Link: [app](app)
+   Link: [app](app)
  
 6. **Documents** -
  
- Link: [Documnets](Documents)
+   Link: [Documnets](Documents)
 
 ## Features
 - Open-source hardware and frimware
