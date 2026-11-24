@@ -39,7 +39,7 @@ Core system components include:
 ## Bill of Materials
 BOM includes the  ESP32 nano board, motor, resistors, capacitor, PCBs, etc.
 
-[Documents/HOLOFan Bill of Materials.xlsx](https://github.com/OSHE-Github/HOLO-Fan/blob/main/Documents/HOLOFan%20Bill%20of%20Materials.xlsx)
+[BOM](https://github.com/OSHE-Github/HOLO-Fan/blob/main/Documents/HOLOFan%20Bill%20of%20Materials.xlsx)
 
 ## Tools Used
 ### Software
