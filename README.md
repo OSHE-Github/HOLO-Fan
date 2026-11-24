@@ -2,6 +2,8 @@
 This project is about designing and building an open-source holographic display fan for outreach events and educational demonstration.
 
 ## Project Details
+The HOLO-Fan project is
+![example](./Documents/OSHE_Logo_300PPI.png)
 
 ## Current State
 - A functional motor and slip ring
@@ -11,18 +13,18 @@ This project is about designing and building an open-source holographic display 
   
 ## Project Structure
 The repository is organized as follows:
-1. **Arduino** -
- Link: [Arduino]()
+1. **Arduino** - 
+ Link: [Arduino](Arduino)
 2. **PCB** -
- Link:[PCB]()
-3. **Release** -
- Link:[Release]()
+ Link:[PCB](PCB)
+3. **Release** - Download app for simulation for holofan
+ Link:[Release](Releases)
 4. **Step** -
- Link:[Step]()
-5. **App** -
- Link:[app]()
+ Link:[Step](Step)
+5. **App** - 
+ Link:[app](app)
 6. **Documents** -
- Link:[Documnets]()
+ Link:[Documnets](Documents)
 
 ## Features
 - Open-source hardware and frimware
@@ -35,13 +37,14 @@ Core system components include:
 
 ## Bill of Materials
 BOM includes the  ESP32 nano board, motor, resistors, capacitor, PCBs, etc.
-[BOM]()
+[BOM](.Documents/HOLOFan Bill of Materials.xlsx)
 
 ## Tools Used
 ### Software
 - Arduino IDE
 - KiCad
 - GitHub Desktop
+- 
 
 ### Hardware
 - 3D printer
@@ -49,6 +52,7 @@ BOM includes the  ESP32 nano board, motor, resistors, capacitor, PCBs, etc.
 - Multimeter
 - Power supply
 - Tweezers
+- 
 
 ## Assembly Overview
 1. 
