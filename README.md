@@ -17,15 +17,15 @@ The repository is organized as follows:
 1. **Arduino** - 
  Link: [Arduino](Arduino)
 2. **PCB** -
- Link:[PCB](PCB)
+ Link: [PCB](PCB)
 3. **Release** - Download app for simulation for holofan
- Link:[Release](Releases)
+ Link: [Release](Releases)
 4. **Step** -
- Link:[Step](Step)
+ Link: [Step](Step)
 5. **App** - 
- Link:[app](app)
+ Link: [app](app)
 6. **Documents** -
- Link:[Documnets](Documents)
+ Link: [Documnets](Documents)
 
 ## Features
 - Open-source hardware and frimware
@@ -38,7 +38,8 @@ Core system components include:
 
 ## Bill of Materials
 BOM includes the  ESP32 nano board, motor, resistors, capacitor, PCBs, etc.
-[BOM](.Documents/HOLOFan Bill of Materials.xlsx)
+
+[BOM](./Documents/HOLOFan Bill of Materials.xlsx)
 
 ## Tools Used
 ### Software
